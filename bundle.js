@@ -17,6 +17,7 @@ function analyzeDependencies(modulesDir) {
   
   // Only analyze core module files (exclude test files and optional modules)
   const coreModules = [
+    'constants',
     'config',
     'logger', 
     'utils',
@@ -34,6 +35,7 @@ function analyzeDependencies(modulesDir) {
   
   // Map of namespace names to module files
   const namespaceToModule = {
+    'Constants': 'constants',
     'Config': 'config',
     'AppLogger': 'logger', 
     'Utils': 'utils',
@@ -60,8 +62,9 @@ function analyzeDependencies(modulesDir) {
     const deps = [];
     
     // Find all namespace references (e.g., Config.VERSION, AppLogger.info, etc.)
+    // But avoid matching Constants.UI as UI, Constants.API as API, etc.
     Object.keys(namespaceToModule).forEach(namespace => {
-      const pattern = new RegExp(`\\b${namespace}\\.`, 'g');
+      const pattern = new RegExp(`(?<!Constants\\.)\\b${namespace}\\.`, 'g');
       if (pattern.test(content) && namespaceToModule[namespace] !== moduleName) {
         deps.push(namespaceToModule[namespace]);
       }
@@ -83,6 +86,8 @@ function topologicalSort(dependencies) {
   
   function visit(node) {
     if (visiting.has(node)) {
+      console.error('Circular dependency path:', Array.from(visiting), '->', node);
+      console.error('Dependencies:', JSON.stringify(dependencies, null, 2));
       throw new Error(`Circular dependency detected involving: ${node}`);
     }
     if (visited.has(node)) return;

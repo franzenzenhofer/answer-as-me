@@ -3,8 +3,7 @@ namespace Utils {
    * Validate email address format
    */
   export function isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return Constants.PATTERNS.EMAIL_ADDRESS.test(email);
   }
   
   /**
@@ -12,7 +11,7 @@ namespace Utils {
    */
   export function truncate(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength - 3) + '...';
+    return text.substring(0, maxLength - Constants.STYLE.MIN_SENTENCE_LENGTH) + '...';
   }
   
   /**
@@ -47,11 +46,11 @@ namespace Utils {
    */
   export function cleanEmailBody(body: string): string {
     // Remove excessive whitespace
-    body = body.replace(/\s+/g, ' ').trim();
+    body = body.replace(Constants.PATTERNS.MULTIPLE_SPACES, ' ').trim();
     
     // Remove email signatures (simple heuristic)
     const signaturePatterns = [
-      /--\s*\n.*/s,
+      /--\s*\n[\s\S]*/,  // Replaced .* with [\s\S]* to match across lines
       /Sent from my.*/i,
       /Get Outlook for.*/i,
       /^Best.*?\n.*$/gm

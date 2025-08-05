@@ -6,8 +6,6 @@ namespace StyleAnalyzer {
     const greetings: string[] = [];
     const closings: string[] = [];
     const sentences: string[] = [];
-    let totalLength = 0;
-    let emailCount = 0;
     
     // Process up to 200 emails
     const emailsToProcess = sentEmails.slice(0, 200);
@@ -18,8 +16,6 @@ namespace StyleAnalyzer {
       // Skip very short emails
       if (body.length < 50) return;
       
-      emailCount++;
-      totalLength += body.length;
       
       // Extract greeting
       const greetingMatch = body.match(/^(Hi|Hello|Hey|Dear|Good\s+\w+)[,\s]*/i);

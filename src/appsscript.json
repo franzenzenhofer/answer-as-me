@@ -2,6 +2,9 @@
   "timeZone": "Europe/Vienna",
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
+  "urlFetchWhitelist": [
+    "https://generativelanguage.googleapis.com/"
+  ],
   "addOns": {
     "common": {
       "name": "Answer As Me",

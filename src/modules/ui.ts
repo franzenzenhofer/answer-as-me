@@ -22,7 +22,7 @@ namespace UI {
       .setTitle(Config.APP_NAME)
       .setSubtitle(`v${Config.VERSION} - ${Config.APP_DESCRIPTION}`)
       .setImageStyle(CardService.ImageStyle.CIRCLE)
-      .setImageUrl('https://i.imgur.com/YOUR_ICON.png');
+      .setImageUrl(Constants.UI.ICON_MAIN);
   }
   
   /**
@@ -34,7 +34,7 @@ namespace UI {
     
     // API Key input
     const apiKeyInput = CardService.newTextInput()
-      .setFieldName('apiKey')
+      .setFieldName(Constants.UI.FIELD_API_KEY)
       .setTitle('Gemini API Key')
       .setValue(settings.apiKey ? '••••••••' + settings.apiKey.slice(-4) : '')
       .setHint('Your Gemini API key');
@@ -53,7 +53,7 @@ namespace UI {
     
     // Signature
     const signatureInput = CardService.newTextInput()
-      .setFieldName('signature')
+      .setFieldName(Constants.UI.FIELD_SIGNATURE)
       .setTitle('Email Signature')
       .setValue(settings.signature)
       .setHint('Your email signature')
@@ -72,7 +72,7 @@ namespace UI {
     
     // Generate response button
     const generateButton = CardService.newTextButton()
-      .setText('Generate Response')
+      .setText(Constants.UI.BUTTON_GENERATE)
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('generateResponse')
@@ -81,7 +81,7 @@ namespace UI {
     
     // Save settings button
     const saveButton = CardService.newTextButton()
-      .setText('Save Settings')
+      .setText(Constants.UI.BUTTON_SAVE_SETTINGS)
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('saveSettings')
@@ -106,8 +106,8 @@ namespace UI {
     const card = CardService.newCardBuilder();
     
     const header = CardService.newCardHeader()
-      .setTitle('Response Generated')
-      .setSubtitle('Draft created successfully');
+      .setTitle(Constants.UI.TITLE_RESPONSE)
+      .setSubtitle(Constants.UI.MSG_RESPONSE_GENERATED);
     
     card.setHeader(header);
     
@@ -115,7 +115,7 @@ namespace UI {
     
     // Response preview
     const previewText = CardService.newTextParagraph()
-      .setText('<b>Preview:</b><br>' + Utils.truncate(Utils.escapeHtml(responseText), 500));
+      .setText('<b>Preview:</b><br>' + Utils.truncate(Utils.escapeHtml(responseText), Constants.UI.MAX_HINT_LENGTH * 2));
     section.addWidget(previewText);
     
     // Open draft button
@@ -143,7 +143,7 @@ namespace UI {
     const card = CardService.newCardBuilder();
     
     const header = CardService.newCardHeader()
-      .setTitle('Error')
+      .setTitle(Constants.UI.MSG_ERROR)
       .setSubtitle('Something went wrong');
     
     card.setHeader(header);
@@ -187,7 +187,7 @@ namespace UI {
     const card = CardService.newCardBuilder();
     
     const header = CardService.newCardHeader()
-      .setTitle('Help - Answer As Me')
+      .setTitle(`${Constants.UI.TITLE_HELP} - ${Constants.METADATA.APP_NAME}`)
       .setSubtitle('How to use this add-on');
     
     card.setHeader(header);

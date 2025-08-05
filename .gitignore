@@ -28,3 +28,11 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Project specific
+LATEST_DEPLOYMENT.md
+test-deployment.js
+
+# Lock files (optional - depends on team preference)
+# package-lock.json
+# yarn.lock

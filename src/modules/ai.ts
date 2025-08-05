@@ -6,7 +6,7 @@ namespace AI {
     if (!apiKey) {
       return {
         success: false,
-        error: 'API key not configured'
+        error: Constants.ERRORS.MSG_API_KEY_REQUIRED
       };
     }
     
@@ -20,16 +20,16 @@ namespace AI {
         generationConfig: {
           temperature: Config.API_TEMPERATURE,
           maxOutputTokens: Config.API_MAX_TOKENS,
-          topK: 40,
-          topP: 0.95
+          topK: Constants.API.TOP_K,
+          topP: Constants.API.TOP_P
         }
       };
       
       const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
-        method: 'post',
-        contentType: 'application/json',
+        method: Constants.API.HTTP_METHOD_POST as GoogleAppsScript.URL_Fetch.HttpMethod,
+        contentType: Constants.API.CONTENT_TYPE_JSON,
         headers: {
-          'x-goog-api-key': apiKey
+          [Constants.API.HEADER_API_KEY]: apiKey
         },
         payload: JSON.stringify(payload),
         muteHttpExceptions: true
@@ -39,7 +39,7 @@ namespace AI {
       const response = UrlFetchApp.fetch(Config.GEMINI_API_URL, options);
       const responseCode = response.getResponseCode();
       
-      if (responseCode !== 200) {
+      if (responseCode !== Constants.API.STATUS_OK) {
         AppLogger.error(`Gemini API error: ${responseCode}`, response.getContentText());
         return {
           success: false,
@@ -52,7 +52,7 @@ namespace AI {
       if (!result.candidates || result.candidates.length === 0) {
         return {
           success: false,
-          error: 'No response generated'
+          error: Constants.ERRORS.MSG_NO_RESPONSE_TEXT
         };
       }
       
@@ -87,7 +87,7 @@ namespace AI {
     const emailBodies = sentEmails
       .slice(0, Config.MAX_SENT_EMAILS_TO_ANALYZE)
       .map(email => Utils.cleanEmailBody(email.getPlainBody()))
-      .filter(body => body.length > 50); // Only meaningful emails
+      .filter(body => body.length > Constants.EMAIL.MIN_EMAIL_LENGTH_FOR_ANALYSIS);
     
     if (emailBodies.length === 0) {
       return null;
@@ -106,13 +106,13 @@ namespace AI {
     try {
       const styleData = JSON.parse(response.response);
       return {
-        greetings: styleData.greetings || ['Hi', 'Hello'],
-        closings: styleData.closings || ['Best regards', 'Thanks'],
+        greetings: styleData.greetings || Constants.STYLE.DEFAULT_GREETINGS,
+        closings: styleData.closings || Constants.STYLE.DEFAULT_CLOSINGS,
         sentencePatterns: styleData.sentencePatterns || [],
         vocabulary: styleData.vocabulary || [],
-        formalityLevel: styleData.formalityLevel || 3,
-        averageSentenceLength: styleData.averageSentenceLength || 15,
-        punctuationStyle: styleData.punctuationStyle || 'standard'
+        formalityLevel: styleData.formalityLevel || Constants.STYLE.FORMALITY_NEUTRAL,
+        averageSentenceLength: styleData.averageSentenceLength || Constants.STYLE.DEFAULT_AVG_SENTENCE_LENGTH,
+        punctuationStyle: styleData.punctuationStyle || Constants.STYLE.DEFAULT_PUNCTUATION
       };
     } catch (error) {
       AppLogger.error('Failed to parse style analysis', error);
@@ -133,7 +133,7 @@ namespace AI {
     if (!apiKey) {
       return {
         success: false,
-        error: 'API key not configured'
+        error: Constants.ERRORS.MSG_API_KEY_REQUIRED
       };
     }
     
@@ -141,7 +141,7 @@ namespace AI {
     const contextString = JSON.stringify({
       from: context.from,
       subject: context.subject,
-      body: Utils.truncate(context.body, 1000),
+      body: Utils.truncate(context.body, Constants.EMAIL.MAX_RESPONSE_LENGTH / 5),
       isReply: context.isReply,
       threadLength: context.previousMessages?.length || 0
     });
@@ -227,13 +227,13 @@ namespace AI {
     // Return default style
     AppLogger.warn('Using default writing style');
     return {
-      greetings: ['Hi', 'Hello', 'Hey'],
-      closings: ['Best regards', 'Thanks', 'Cheers'],
+      greetings: Constants.STYLE.DEFAULT_GREETINGS,
+      closings: Constants.STYLE.DEFAULT_CLOSINGS,
       sentencePatterns: [],
       vocabulary: [],
-      formalityLevel: 3,
-      averageSentenceLength: 15,
-      punctuationStyle: 'standard'
+      formalityLevel: Constants.STYLE.FORMALITY_NEUTRAL,
+      averageSentenceLength: Constants.STYLE.DEFAULT_AVG_SENTENCE_LENGTH,
+      punctuationStyle: Constants.STYLE.DEFAULT_PUNCTUATION
     };
   }
 }

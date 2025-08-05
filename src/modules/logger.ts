@@ -1,9 +1,9 @@
 namespace AppLogger {
   export enum LogLevel {
-    DEBUG = 0,
-    INFO = 1,
-    WARN = 2,
-    ERROR = 3
+    DEBUG = Constants.LOG.LEVEL_DEBUG,
+    INFO = Constants.LOG.LEVEL_INFO,
+    WARN = Constants.LOG.LEVEL_WARN,
+    ERROR = Constants.LOG.LEVEL_ERROR
   }
   
   let currentLogLevel = LogLevel.INFO;
@@ -20,7 +20,7 @@ namespace AppLogger {
    */
   export function debug(message: string, data?: any): void {
     if (currentLogLevel <= LogLevel.DEBUG) {
-      console.log(`[DEBUG] ${message}`, data || '');
+      console.log(`${Constants.LOG.PREFIX_DEBUG} ${message}`, data || '');
     }
   }
   
@@ -29,7 +29,7 @@ namespace AppLogger {
    */
   export function info(message: string, data?: any): void {
     if (currentLogLevel <= LogLevel.INFO) {
-      console.info(`[INFO] ${message}`, data || '');
+      console.info(`${Constants.LOG.PREFIX_INFO} ${message}`, data || '');
     }
   }
   
@@ -38,7 +38,7 @@ namespace AppLogger {
    */
   export function warn(message: string, data?: any): void {
     if (currentLogLevel <= LogLevel.WARN) {
-      console.warn(`[WARN] ${message}`, data || '');
+      console.warn(`${Constants.LOG.PREFIX_WARN} ${message}`, data || '');
     }
   }
   
@@ -47,7 +47,7 @@ namespace AppLogger {
    */
   export function error(message: string, error?: any): void {
     if (currentLogLevel <= LogLevel.ERROR) {
-      console.error(`[ERROR] ${message}`, error || '');
+      console.error(`${Constants.LOG.PREFIX_ERROR} ${message}`, error || '');
       
       // Also log to Stackdriver for production errors
       if (error instanceof Error) {
@@ -61,13 +61,13 @@ namespace AppLogger {
    */
   export function redact(text: string): string {
     // Redact email addresses
-    text = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL]');
+    text = text.replace(Constants.PATTERNS.EMAIL_ADDRESS, Constants.LOG.REDACTED_EMAIL);
     
     // Redact API keys (looking for long alphanumeric strings)
-    text = text.replace(/\b[A-Za-z0-9]{32,}\b/g, '[REDACTED]');
+    text = text.replace(Constants.PATTERNS.API_KEY, Constants.LOG.REDACTED_API_KEY);
     
     // Redact potential names (simple heuristic)
-    text = text.replace(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g, '[NAME]');
+    text = text.replace(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g, Constants.LOG.REDACTED_NAME);
     
     return text;
   }

@@ -122,7 +122,7 @@ namespace GmailService {
   /**
    * Get inbox threads
    */
-  export function getInboxThreads(maxThreads: number = Config.MAX_THREADS_TO_PROCESS): GoogleAppsScript.Gmail.GmailThread[] {
+  export function getInboxThreads(maxThreads: number = Constants.EMAIL.MAX_THREADS_TO_PROCESS): GoogleAppsScript.Gmail.GmailThread[] {
     return GmailApp.getInboxThreads(0, maxThreads);
   }
   
@@ -133,7 +133,7 @@ namespace GmailService {
     try {
       // Check remaining daily quota
       const quota = MailApp.getRemainingDailyQuota();
-      return quota > 0;
+      return quota > Constants.VALIDATION.MIN_SENTENCE_COUNT;
     } catch (error) {
       AppLogger.error('Failed to check email quota', error);
       return false;

@@ -1,0 +1,49 @@
+# Source files (only publish dist)
+src/
+tests/
+
+# Config files
+.eslintrc.js
+.editorconfig
+commitlint.config.js
+jest.config.js
+tsconfig.json
+.nvmrc
+
+# Scripts and tools
+scripts/
+*.sh
+
+# Documentation (keep only essential)
+CLAUDE.md
+PROJECT_*.md
+FINAL_*.md
+DEPLOYMENT_*.md
+LATEST_*.md
+
+# Development files
+*.log
+*.tmp
+*.temp
+.DS_Store
+
+# CI/CD
+.github/
+
+# Google Apps Script
+.clasp.json
+.clasprc.json
+
+# Test coverage
+coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Build artifacts (during development)
+*.map

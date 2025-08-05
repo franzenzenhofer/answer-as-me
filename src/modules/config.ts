@@ -1,88 +1,67 @@
 namespace Config {
   // Version info - injected during build
-  export const VERSION = '{{VERSION}}';
-  export const DEPLOY_TIME = '{{DEPLOY_TIME}}';
+  export const VERSION = Constants.METADATA.VERSION_PLACEHOLDER;
+  export const DEPLOY_TIME = Constants.METADATA.DEPLOY_TIME_PLACEHOLDER;
   
   // App metadata
-  export const APP_NAME = 'Answer As Me';
-  export const APP_DESCRIPTION = 'AI-powered email responses in your style';
+  export const APP_NAME = Constants.METADATA.APP_NAME;
+  export const APP_DESCRIPTION = Constants.METADATA.APP_DESCRIPTION;
   
   // API configuration
-  export const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
-  export const API_TEMPERATURE = 0.7;
-  export const API_MAX_TOKENS = 2048;
-  export const API_TIMEOUT = 30000; // 30 seconds
+  export const GEMINI_API_URL = `${Constants.API.GEMINI_BASE_URL}/${Constants.API.GEMINI_VERSION}/models/${Constants.API.GEMINI_MODEL}:${Constants.API.GEMINI_ENDPOINT}`;
+  export const API_TEMPERATURE = Constants.API.TEMPERATURE;
+  export const API_MAX_TOKENS = Constants.API.MAX_OUTPUT_TOKENS;
+  export const API_TIMEOUT = Constants.API.TIMEOUT_MS;
   
   // Processing limits
-  export const MAX_THREADS_TO_PROCESS = 50;
-  export const MAX_SENT_EMAILS_TO_ANALYZE = 200;
-  export const MAX_CONTEXT_MESSAGES = 10;
-  export const MAX_RESPONSE_LENGTH = 5000;
+  export const MAX_THREADS_TO_PROCESS = Constants.EMAIL.MAX_THREADS_TO_PROCESS;
+  export const MAX_SENT_EMAILS_TO_ANALYZE = Constants.EMAIL.MAX_SENT_EMAILS_TO_ANALYZE;
+  export const MAX_CONTEXT_MESSAGES = Constants.EMAIL.MAX_CONTEXT_MESSAGES;
+  export const MAX_RESPONSE_LENGTH = Constants.EMAIL.MAX_RESPONSE_LENGTH;
   
   // Property keys
   export const PROPERTY_KEYS = {
-    API_KEY: 'AAM_API_KEY',
-    RESPONSE_MODE: 'AAM_RESPONSE_MODE',
-    AUTO_REPLY: 'AAM_AUTO_REPLY',
-    FORMALITY_LEVEL: 'AAM_FORMALITY_LEVEL',
-    RESPONSE_LENGTH: 'AAM_RESPONSE_LENGTH',
-    CUSTOM_INSTRUCTIONS: 'AAM_CUSTOM_INSTRUCTIONS',
-    SIGNATURE: 'AAM_SIGNATURE',
-    WRITING_STYLE: 'AAM_WRITING_STYLE',
-    LAST_ANALYSIS: 'AAM_LAST_ANALYSIS'
+    API_KEY: Constants.PROPERTIES.API_KEY,
+    RESPONSE_MODE: Constants.PROPERTIES.RESPONSE_MODE,
+    AUTO_REPLY: Constants.PROPERTIES.AUTO_REPLY,
+    FORMALITY_LEVEL: Constants.PROPERTIES.FORMALITY_LEVEL,
+    RESPONSE_LENGTH: Constants.PROPERTIES.RESPONSE_LENGTH,
+    CUSTOM_INSTRUCTIONS: Constants.PROPERTIES.CUSTOM_INSTRUCTIONS,
+    SIGNATURE: Constants.PROPERTIES.SIGNATURE,
+    WRITING_STYLE: Constants.PROPERTIES.WRITING_STYLE,
+    LAST_ANALYSIS: Constants.PROPERTIES.LAST_ANALYSIS
   };
   
   // Default settings
   export const DEFAULT_SETTINGS: Types.Config = {
     apiKey: '',
-    responseMode: Types.ResponseMode.DRAFT,
+    responseMode: Constants.RESPONSE.MODE_DRAFT as Types.ResponseMode,
     autoReply: false,
-    formalityLevel: 3,
-    responseLength: Types.ResponseLength.MEDIUM,
+    formalityLevel: Constants.STYLE.FORMALITY_NEUTRAL,
+    responseLength: Constants.RESPONSE.LENGTH_MEDIUM as Types.ResponseLength,
     customInstructions: '',
-    signature: 'Best regards,\\nFranz'
+    signature: Constants.EMAIL.DEFAULT_SIGNATURE
   };
   
   // UI Constants
   export const UI = {
-    CARD_WIDTH: 600,
-    MAX_BUTTON_TEXT_LENGTH: 40,
-    NOTIFICATION_TIMEOUT: 10,
-    FORMALITY_LABELS: ['Very Casual', 'Casual', 'Neutral', 'Formal', 'Very Formal']
+    CARD_WIDTH: Constants.UI.CARD_WIDTH,
+    MAX_BUTTON_TEXT_LENGTH: Constants.UI.MAX_BUTTON_TEXT_LENGTH,
+    NOTIFICATION_TIMEOUT: Constants.UI.NOTIFICATION_TIMEOUT_MS / 1000,
+    FORMALITY_LABELS: Constants.STYLE.FORMALITY_LABELS
   };
   
   // Email patterns
   export const EMAIL_PATTERNS = {
-    GREETING: /^(hi|hello|hey|dear|good\s+(morning|afternoon|evening))/i,
-    CLOSING: /(regards|best|sincerely|thanks|cheers|kind regards)/i,
-    QUESTION: /\?|^(what|where|when|why|how|who|which|could|would|should|can|will)/i
+    GREETING: Constants.PATTERNS.GREETING,
+    CLOSING: Constants.PATTERNS.CLOSING,
+    QUESTION: Constants.PATTERNS.QUESTION
   };
   
   // System prompts
   export const PROMPTS = {
-    STYLE_ANALYSIS: `Analyze the writing style of these emails and extract:
-- Common greetings used
-- Common closing phrases
-- Sentence structure patterns
-- Vocabulary preferences
-- Formality level (1-5)
-- Average sentence length
-- Punctuation style
-
-Return as JSON with these exact fields: greetings, closings, sentencePatterns, vocabulary, formalityLevel, averageSentenceLength, punctuationStyle`,
-    
-    RESPONSE_GENERATION: `Generate an email response that:
-1. Matches the provided writing style
-2. Appropriately addresses the email content
-3. Maintains the specified formality level
-4. Uses appropriate length based on preference
-5. Includes relevant context from the thread
-
-Style profile: {style}
-Email context: {context}
-Custom instructions: {instructions}
-
-Return only the email body text, no subject or metadata.`
+    STYLE_ANALYSIS: Constants.PROMPTS.STYLE_ANALYSIS,
+    RESPONSE_GENERATION: Constants.PROMPTS.RESPONSE_GENERATION
   };
   
   /**

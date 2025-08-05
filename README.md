@@ -1,5 +1,10 @@
 # Answer As Me - Gmail Add-on
 
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
+[![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-Ready-green)](https://developers.google.com/apps-script)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+
 AI-powered Gmail add-on that generates personalized email responses matching your writing style.
 
 ## Features

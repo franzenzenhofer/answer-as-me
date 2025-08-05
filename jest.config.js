@@ -3,7 +3,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
-  testMatch: ['**/*.test.ts'],
+  testMatch: ['**/*.test.ts', '**/*.test.js'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
@@ -14,9 +14,8 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1'
   },
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  globals: {
-    'ts-jest': {
+  transform: {
+    '^.+\\.ts$': ['ts-jest', {
       tsconfig: {
         target: 'ES2022',
         module: 'commonjs',
@@ -25,6 +24,7 @@ module.exports = {
         esModuleInterop: true,
         skipLibCheck: true
       }
-    }
-  }
+    }]
+  },
+  setupFiles: ['<rootDir>/tests/helpers/constants-mock.js', '<rootDir>/tests/helpers/namespace-setup.js']
 };
