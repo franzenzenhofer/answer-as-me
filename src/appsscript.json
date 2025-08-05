@@ -1,0 +1,53 @@
+{
+  "timeZone": "Europe/Vienna",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "addOns": {
+    "common": {
+      "name": "Answer As Me",
+      "logoUrl": "https://i.imgur.com/YOUR_ICON_URL.png",
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "onHomepage",
+        "enabled": true
+      },
+      "universalActions": [
+        {
+          "label": "Settings",
+          "runFunction": "onSettings"
+        },
+        {
+          "label": "Help",
+          "runFunction": "onHelp"
+        }
+      ]
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "onGmailMessage"
+        }
+      ],
+      "composeTrigger": {
+        "selectActions": [
+          {
+            "text": "Generate Response",
+            "runFunction": "onComposeAction"
+          }
+        ],
+        "draftAccess": "METADATA"
+      }
+    }
+  },
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email"
+  ]
+}
