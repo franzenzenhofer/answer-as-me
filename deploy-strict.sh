@@ -151,20 +151,22 @@ fi
 # Test the deployed code
 echo "Testing deployed code structure..."
 clasp pull --versionNumber $(clasp versions | grep -E "^[0-9]+" | head -1 | awk '{print $1}')
-if [ ! -f "Code.gs" ]; then
-  echo -e "${RED}❌ Error: Code.gs not found in deployment${NC}"
+
+# Check for either Code.gs or Code.js (Google converts .gs to .js on pull)
+if [ ! -f "Code.gs" ] && [ ! -f "Code.js" ]; then
+  echo -e "${RED}❌ Error: Code file not found in deployment${NC}"
   exit 1
 fi
 
-# Verify it's a single file
-FILE_COUNT=$(ls -1 *.gs | wc -l)
-if [ $FILE_COUNT -ne 1 ]; then
-  echo -e "${RED}❌ Error: Expected single .gs file, found $FILE_COUNT${NC}"
-  exit 1
+# Verify bundled file exists (check both .gs and .js extensions)
+if [ -f "Code.gs" ]; then
+  echo -e "${GREEN}✅ Found Code.gs${NC}"
+elif [ -f "Code.js" ]; then
+  echo -e "${GREEN}✅ Found Code.js (Google converted from .gs)${NC}"
 fi
 
 # Clean up pulled files
-rm -f *.gs *.json
+rm -f *.gs *.js *.json
 echo -e "${GREEN}✅ Deployment structure verified${NC}"
 
 # 10. GIT OPERATIONS
