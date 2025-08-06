@@ -1,15 +1,8 @@
 {
-  "version": "1.0.8",
-  "timestamp": "2025-08-06 21:16:45",
-  "bundleSize": 171012,
+  "version": "1.0.13",
+  "timestamp": "2025-08-06 21:29:38",
+  "bundleSize": 171015,
   "coverage": "N/A%",
   "scriptId": "1lBZGlPIg44JJB6h7OlYIvg1AUe8ACLNVda5kjoEsiVIqrnlf-eOqb872",
-  "commitHash": "5a9157a",
-  "deploymentId": "AKfycbxJ9OMmyf3XBw6VGIXIKdLQvkBeK0h2LoF-nBaEwyfqQvJjBrdLxSocM9Fhq5DcV7IN8Q",
-  "deploymentVersion": 8,
-  "criticalFixes": [
-    "Added gmail.homepageTrigger to manifest",
-    "Added missing OAuth scopes for Docs/Drive",
-    "Fixed add-on visibility in Gmail"
-  ]
+  "commitHash": "103359228b5f26361bf255cab416f17c25aa1c7c"
 }
