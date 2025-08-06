@@ -3,7 +3,7 @@
     "target": "ES5",
     "module": "commonjs",
     "lib": ["ES2017"],
-    "outDir": "./dist",
+    "outDir": "./temp",
     "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
@@ -40,6 +40,7 @@
   "exclude": [
     "node_modules",
     "dist",
+    "temp",
     "tests",
     "**/*.test.ts",
     "**/*.spec.ts",

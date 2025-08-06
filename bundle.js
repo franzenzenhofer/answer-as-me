@@ -167,7 +167,8 @@ function extractHelpers(moduleContent) {
 
 function createBundle() {
   const distDir = path.join(__dirname, 'dist');
-  const srcDir = path.join(distDir, 'src');
+  const tempDir = path.join(__dirname, 'temp');
+  const srcDir = path.join(tempDir, 'src');
   const codeFile = path.join(srcDir, 'Code.js');
   const modulesDir = path.join(srcDir, 'modules');
   const bundleFile = path.join(distDir, 'Code.gs');
