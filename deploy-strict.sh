@@ -172,30 +172,97 @@ fi
 # Verify the deployed version matches our local version
 echo "Verifying deployed version matches local version $NEW_VERSION..."
 
-# Pull the deployed code to check version
+# Pull the deployed code to check version and structure
 TEMP_VERIFY_DIR=$(mktemp -d)
 cd "$TEMP_VERIFY_DIR"
 cp "$OLDPWD/.clasp.json" .
 cp "$OLDPWD/.claspignore" . 2>/dev/null || true
 
-if clasp pull > /dev/null 2>&1; then
-  # Check if the version in the deployed code matches our version
-  if [ -f "Code.gs" ] && grep -q "APP_VERSION: '$NEW_VERSION'" Code.gs; then
-    echo -e "${GREEN}✅ Version verification passed - v$NEW_VERSION deployed successfully${NC}"
-  elif [ -f "Code.js" ] && grep -q "APP_VERSION: '$NEW_VERSION'" Code.js; then
-    echo -e "${GREEN}✅ Version verification passed - v$NEW_VERSION deployed successfully${NC}"
+echo -e "\n${YELLOW}9.1. Pulling deployed code for verification...${NC}"
+if ! clasp pull > /dev/null 2>&1; then
+  echo -e "${RED}❌ Error: Failed to pull deployed code${NC}"
+  cd "$OLDPWD"
+  rm -rf "$TEMP_VERIFY_DIR"
+  exit 1
+fi
+
+# Check that exactly one Code file and one manifest file exist
+echo -e "\n${YELLOW}9.2. Verifying deployment structure...${NC}"
+CODE_FILES=$(ls Code.* 2>/dev/null | wc -l)
+MANIFEST_FILES=$(ls appsscript.json 2>/dev/null | wc -l)
+
+if [ $CODE_FILES -ne 1 ]; then
+  echo -e "${RED}❌ Error: Expected exactly 1 Code file, found $CODE_FILES${NC}"
+  ls -la Code.* 2>/dev/null || echo "No Code files found"
+  cd "$OLDPWD"
+  rm -rf "$TEMP_VERIFY_DIR"
+  exit 1
+fi
+
+if [ $MANIFEST_FILES -ne 1 ]; then
+  echo -e "${RED}❌ Error: Expected exactly 1 manifest file, found $MANIFEST_FILES${NC}"
+  cd "$OLDPWD"
+  rm -rf "$TEMP_VERIFY_DIR"
+  exit 1
+fi
+
+echo -e "${GREEN}✅ File structure verified: 1 Code file, 1 manifest file${NC}"
+
+# Check version in deployed code
+echo -e "\n${YELLOW}9.3. Verifying version number...${NC}"
+CODE_FILE=$(ls Code.* | head -1)
+if grep -q "APP_VERSION: '$NEW_VERSION'" "$CODE_FILE"; then
+  echo -e "${GREEN}✅ Version verification passed - v$NEW_VERSION deployed successfully${NC}"
+else
+  echo -e "${RED}❌ Error: Version mismatch in deployed code${NC}"
+  echo "Expected version: $NEW_VERSION"
+  echo "Found in $CODE_FILE:"
+  grep -o "APP_VERSION: '[^']*'" "$CODE_FILE" || echo "No APP_VERSION found"
+  cd "$OLDPWD"
+  rm -rf "$TEMP_VERIFY_DIR"
+  exit 1
+fi
+
+# Check manifest integrity
+echo -e "\n${YELLOW}9.4. Verifying manifest integrity...${NC}"
+if ! grep -q '"gmail"' appsscript.json; then
+  echo -e "${RED}❌ Error: Gmail configuration missing from manifest${NC}"
+  cd "$OLDPWD"
+  rm -rf "$TEMP_VERIFY_DIR"
+  exit 1
+fi
+
+if ! grep -q 'homepageTrigger' appsscript.json; then
+  echo -e "${RED}❌ Error: Homepage trigger missing from manifest${NC}"
+  cd "$OLDPWD"
+  rm -rf "$TEMP_VERIFY_DIR"
+  exit 1
+fi
+
+# Check icon URL is accessible
+echo -e "\n${YELLOW}9.5. Verifying icon URL...${NC}"
+ICON_URL=$(grep -o '"logoUrl":[[:space:]]*"[^"]*"' appsscript.json | grep -o 'https://[^"]*')
+if [ ! -z "$ICON_URL" ]; then
+  echo "Checking icon URL: $ICON_URL"
+  if curl -s -o /dev/null -w "%{http_code}" "$ICON_URL" | grep -q "200"; then
+    echo -e "${GREEN}✅ Icon URL is accessible (HTTP 200)${NC}"
   else
-    echo -e "${YELLOW}⚠️  Version verification inconclusive - but deployment successful${NC}"
-    echo "Note: Version string may not be visible in pulled code due to minification"
+    echo -e "${RED}❌ Error: Icon URL is not accessible${NC}"
+    echo "URL: $ICON_URL"
+    echo "HTTP Status: $(curl -s -o /dev/null -w "%{http_code}" "$ICON_URL")"
+    cd "$OLDPWD"
+    rm -rf "$TEMP_VERIFY_DIR"
+    exit 1
   fi
 else
-  echo -e "${YELLOW}⚠️  Could not pull for version verification - but deployment successful${NC}"
+  echo -e "${YELLOW}⚠️  No icon URL found in manifest${NC}"
 fi
+
+echo -e "${GREEN}✅ All deployment structure tests passed${NC}"
 
 # Return to original directory and clean up
 cd "$OLDPWD"
 rm -rf "$TEMP_VERIFY_DIR"
-echo -e "${GREEN}✅ Deployment structure verified${NC}"
 
 # 10. GIT OPERATIONS
 echo -e "\n${YELLOW}10. Committing and Tagging...${NC}"

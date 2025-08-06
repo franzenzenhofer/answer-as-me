@@ -8,7 +8,7 @@
   "addOns": {
     "common": {
       "name": "Answer As Me",
-      "logoUrl": "https://www.gstatic.com/images/icons/material/system/2x/email_blue_48dp.png",
+      "logoUrl": "https://www.gstatic.com/images/icons/material/system/2x/support_agent_black_24dp.png",
       "useLocaleFromApp": true,
       "homepageTrigger": {
         "runFunction": "onHomepage",
