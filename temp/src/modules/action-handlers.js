@@ -92,9 +92,9 @@ var ActionHandlers;
             if (!style) {
                 throw new ErrorHandling.AppError('Unable to analyze writing style', 'STYLE_ERROR', 'Please ensure you have sent emails from this account');
             }
-            // Get user profile
+            // Get user profile for context
             var userProfile = UserProfile.getUserProfile();
-            // Generate response
+            // Generate response using AI with context, style, user profile, and API key
             var aiResponse = AI.generateEmailResponse(context, style, userProfile, settings.apiKey);
             if (!aiResponse.success || !aiResponse.response) {
                 // Provide detailed error message
@@ -505,8 +505,8 @@ var ActionHandlers;
     function openPromptsDocument(_e) {
         try {
             AppLogger.info('Opening prompts document');
-            // Get or create the main prompts document
-            var docId = GoogleDocsPrompts.getOrCreatePromptDocument('main');
+            // Get or create the settings prompts document
+            var docId = GoogleDocsPrompts.getOrCreatePromptDocument(Constants.PROMPTS.TYPES.SETTINGS);
             var doc = DocumentApp.openById(docId);
             var url = doc.getUrl();
             // Open the document in a new tab

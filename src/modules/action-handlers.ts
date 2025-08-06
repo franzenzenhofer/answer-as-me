@@ -87,10 +87,10 @@ namespace ActionHandlers {
         );
       }
       
-      // Get user profile
+      // Get user profile for context
       const userProfile = UserProfile.getUserProfile();
       
-      // Generate response
+      // Generate response using AI with context, style, user profile, and API key
       const aiResponse = AI.generateEmailResponse(context, style, userProfile, settings.apiKey);
       
       if (!aiResponse.success || !aiResponse.response) {
@@ -622,8 +622,8 @@ namespace ActionHandlers {
     try {
       AppLogger.info('Opening prompts document');
       
-      // Get or create the main prompts document
-      const docId = GoogleDocsPrompts.getOrCreatePromptDocument('main');
+      // Get or create the settings prompts document
+      const docId = GoogleDocsPrompts.getOrCreatePromptDocument(Constants.PROMPTS.TYPES.SETTINGS);
       const doc = DocumentApp.openById(docId);
       const url = doc.getUrl();
       

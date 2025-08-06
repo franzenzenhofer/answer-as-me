@@ -42,6 +42,7 @@
     "dist",
     "temp",
     "tests",
+    "opentickets",
     "**/*.test.ts",
     "**/*.spec.ts",
     "src/integration-test.ts"
