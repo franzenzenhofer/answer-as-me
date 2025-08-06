@@ -13,6 +13,21 @@ namespace Types {
   }
 
   /**
+   * Form input values from Google Apps Script
+   */
+  export interface FormInputs {
+    [key: string]: string[] | undefined;
+    apiKey?: string[];
+    responseMode?: string[];
+    autoReply?: string[];
+    formalityLevel?: string[];
+    responseLength?: string[];
+    customInstructions?: string[];
+    signature?: string[];
+    editedResponse?: string[];
+  }
+
+  /**
    * Response generation modes
    */
   export enum ResponseMode {

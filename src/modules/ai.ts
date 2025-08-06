@@ -4,9 +4,9 @@ namespace AI {
    */
   export interface ResponseSchema {
     type: string;
-    properties?: { [key: string]: any };
+    properties?: { [key: string]: unknown };
     required?: string[];
-    items?: any;
+    items?: unknown;
     enum?: string[];
   }
 
@@ -67,7 +67,7 @@ namespace AI {
     
     try {
       // Build generation config
-      const generationConfig: any = {
+      const generationConfig: Record<string, unknown> = {
         temperature: Config.API_TEMPERATURE,
         maxOutputTokens: Config.API_MAX_TOKENS,
         topK: Constants.API.TOP_K,
@@ -98,7 +98,7 @@ namespace AI {
       }
 
       // Build payload
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         contents: [{
           parts: [{
             text: prompt
@@ -206,7 +206,7 @@ namespace AI {
       }
       
       // Parse response with error boundary
-      let result: any;
+      let result: unknown;
       try {
         result = JSON.parse(response.getContentText());
       } catch (parseError) {
@@ -217,6 +217,28 @@ namespace AI {
         return {
           success: false,
           error: 'Invalid JSON response from API'
+        };
+      }
+      
+      // Type guard for API response
+      interface ApiResponse {
+        error?: { message?: string };
+        candidates?: Array<{
+          content?: { parts?: Array<{ text?: string }> };
+          finishReason?: string;
+          groundingMetadata?: { webSearchQueries?: unknown[] };
+          safetyRatings?: Array<{ probability?: number }>;
+        }>;
+      }
+      
+      const isApiResponse = (obj: unknown): obj is ApiResponse => {
+        return typeof obj === 'object' && obj !== null;
+      };
+      
+      if (!isApiResponse(result)) {
+        return {
+          success: false,
+          error: 'Invalid API response format'
         };
       }
       
@@ -365,7 +387,7 @@ namespace AI {
       }
       
       // Parse and validate the response with error boundary
-      let parsed: any;
+      let parsed: unknown;
       try {
         parsed = JsonValidator.parseJson<any>(response.response, 'Writing Style Analysis');
         if (!parsed) {
@@ -473,7 +495,7 @@ namespace AI {
       }
       
       // Parse and validate the response with error boundary
-      let parsed: any;
+      let parsed: unknown;
       try {
         parsed = JsonValidator.parseJson<any>(response.response, 'User Profile Improvement');
         if (!parsed) {

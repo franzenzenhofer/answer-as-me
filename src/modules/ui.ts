@@ -481,7 +481,7 @@ namespace UI {
         const style = JSON.parse(hasStyle);
         const formalityLabel = Constants.STYLE.FORMALITY_LABELS[style.formalityLevel - 1] || 'Neutral';
         styleInfo = `Style: ✅ Analyzed (${formalityLabel}, ${style.greetings?.length || 0} greetings, ${style.closings?.length || 0} closings)`;
-      } catch (error) {
+      } catch {
         styleInfo = 'Style: ✅ Analyzed (details available)';
       }
     }
@@ -533,7 +533,7 @@ namespace UI {
           );
         
         promptsSection.addWidget(promptButtons);
-      } catch (error) {
+      } catch {
         const promptsInfo = CardService.newTextParagraph()
           .setText('Prompts: ❌ Error - Click to recreate');
         promptsSection.addWidget(promptsInfo);

@@ -168,7 +168,8 @@ namespace ActionHandlers {
       
       // Validate and update API key
       if ('apiKey' in formData) {
-        const apiKeyArray = (formData as any).apiKey;
+        const typedFormData = formData as Types.FormInputs;
+        const apiKeyArray = typedFormData.apiKey;
         if (Array.isArray(apiKeyArray) && apiKeyArray.length > 0) {
           const apiKeyValue = String(apiKeyArray[0]);
           if (apiKeyValue && !apiKeyValue.startsWith(Constants.API.KEY_MASK)) {
@@ -190,7 +191,8 @@ namespace ActionHandlers {
       // Extract other form values safely
       const getFormValue = (key: string): string | undefined => {
         if (key in formData) {
-          const value = (formData as any)[key];
+          const typedFormData = formData as Types.FormInputs;
+          const value = typedFormData[key];
           if (Array.isArray(value) && value.length > 0) {
             return String(value[0]);
           }
@@ -276,7 +278,8 @@ namespace ActionHandlers {
       // Safely extract edited response
       let editedResponse = '';
       if ('editedResponse' in formData) {
-        const value = (formData as any).editedResponse;
+        const typedFormData = formData as Types.FormInputs;
+        const value = typedFormData.editedResponse;
         if (Array.isArray(value) && value.length > 0) {
           editedResponse = String(value[0]);
         }
@@ -339,7 +342,8 @@ namespace ActionHandlers {
       // Safely extract edited response
       let editedResponse = '';
       if ('editedResponse' in formData) {
-        const value = (formData as any).editedResponse;
+        const typedFormData = formData as Types.FormInputs;
+        const value = typedFormData.editedResponse;
         if (Array.isArray(value) && value.length > 0) {
           editedResponse = String(value[0]);
         }
@@ -394,7 +398,8 @@ namespace ActionHandlers {
       // Safely extract edited response
       let editedResponse = '';
       if ('editedResponse' in formData) {
-        const value = (formData as any).editedResponse;
+        const typedFormData = formData as Types.FormInputs;
+        const value = typedFormData.editedResponse;
         if (Array.isArray(value) && value.length > 0) {
           editedResponse = String(value[0]);
         }
