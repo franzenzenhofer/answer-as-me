@@ -4,11 +4,22 @@ namespace ActionHandlers {
    */
   export function generateResponse(e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
-      AppLogger.info('Generating response');
+      AppLogger.info('🚀 Starting response generation', {
+        hasGmail: !!e.gmail,
+        hasMessageId: !!e.gmail?.messageId,
+        timestamp: new Date().toISOString()
+      });
       
-      // Get settings
+      // Get settings with enhanced debugging
       const settings = Config.getSettings();
+      AppLogger.info('📊 Settings loaded', {
+        hasApiKey: !!settings.apiKey,
+        apiKeyLength: settings.apiKey?.length || 0,
+        responseMode: settings.responseMode
+      });
+      
       if (!settings.apiKey) {
+        AppLogger.warn('❌ No API key configured');
         return CardService.newActionResponseBuilder()
           .setNotification(
             CardService.newNotification()
@@ -21,9 +32,14 @@ namespace ActionHandlers {
           .build();
       }
       
-      // Get current message
+      // Get current message with enhanced error handling
+      AppLogger.info('📧 Getting current message from Gmail');
       const message = GmailService.getCurrentMessage(e);
       if (!message) {
+        AppLogger.error('❌ No Gmail message found', {
+          eventKeys: Object.keys(e),
+          gmailKeys: e.gmail ? Object.keys(e.gmail) : null
+        });
         throw new ErrorHandling.AppError(
           'No message found',
           'NO_MESSAGE',
@@ -31,8 +47,20 @@ namespace ActionHandlers {
         );
       }
       
-      // Get email context
+      AppLogger.info('✅ Message found', {
+        subject: message.getSubject(),
+        from: message.getFrom(),
+        date: message.getDate()
+      });
+      
+      // Get email context with error boundary
+      AppLogger.info('📋 Extracting email context');
       const context = GmailService.getEmailContext(message);
+      AppLogger.info('✅ Context extracted', {
+        hasSubject: !!context.subject,
+        hasBody: !!context.body,
+        hasFrom: !!context.from
+      });
       
       // Get writing style
       const style = AI.getWritingStyle();

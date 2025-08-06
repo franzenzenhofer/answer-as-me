@@ -112,28 +112,29 @@ namespace AI {
         payload.tools = tools;
       }
       
+      // CRITICAL FIX: Use URL parameter auth for Apps Script compatibility
+      const urlWithKey = `${Config.GEMINI_API_URL}?key=${apiKey}`;
+      
       const requestOptions: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
         method: Constants.API.HTTP_METHOD_POST as GoogleAppsScript.URL_Fetch.HttpMethod,
         contentType: Constants.API.CONTENT_TYPE_JSON,
-        headers: {
-          'x-goog-api-key': apiKey
-        },
         payload: JSON.stringify(payload),
         muteHttpExceptions: true
       };
       
-      AppLogger.info('🚀 Calling Gemini API', { 
+      AppLogger.info('🚀 Calling Gemini API (URL param auth)', { 
         url: Config.GEMINI_API_URL,
         apiKey: `${apiKey.substring(0, 8)}...${apiKey.slice(-4)}`,
         jsonMode: options?.jsonMode,
         grounding: options?.enableGrounding,
         codeExecution: options?.enableCodeExecution,
-        payloadSize: JSON.stringify(payload).length
+        payloadSize: JSON.stringify(payload).length,
+        authMethod: 'URL_PARAMETER'
       });
       
       // Use retry logic with timeout monitoring
       const response = Utils.retryWithBackoff(
-        () => Utils.fetchWithTimeout(Config.GEMINI_API_URL, requestOptions),
+        () => Utils.fetchWithTimeout(urlWithKey, requestOptions),
         3, // max retries
         1000 // initial delay
       );

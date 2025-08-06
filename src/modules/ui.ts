@@ -25,56 +25,44 @@ namespace UI {
         .setImageUrl(Constants.UI.ICON_MAIN)
     );
     
-    // Quick status
+    // System Status Dashboard
     const statusSection = CardService.newCardSection()
-      .setHeader('<b>📊 Status</b>');
+      .setHeader('<b>📊 System Status</b>');
     
     const hasStyle = PropertyManager.getProperty(Constants.PROPERTIES.WRITING_STYLE, 'user');
     const promptsDocId = PropertyManager.getProperty(Constants.PROPERTIES.PROMPTS_DOC_ID, 'script');
     
-    // Combined status display
-    const statusGrid = CardService.newButtonSet()
-      .addButton(
-        CardService.newTextButton()
-          .setText(`🔑 ${settings.apiKey ? '✅' : '❌'}`)
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('onSettings')
-          )
-      )
-      .addButton(
-        CardService.newTextButton()
-          .setText(`✍️ ${hasStyle ? '✅' : '⏳'}`)
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('onStyleAnalysis')
-          )
-      )
-      .addButton(
-        CardService.newTextButton()
-          .setText(`📄 ${promptsDocId ? '✅' : '⏳'}`)
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('onPromptEditor')
-          )
-      );
+    // Dashboard status text - clear and informative
+    const apiStatus = settings.apiKey ? '✅ Connected and Working' : '❌ Not Configured';
+    const styleStatus = hasStyle ? '✅ Analysis Complete' : '⏳ Will Learn from Your Emails';
+    const promptStatus = promptsDocId ? '✅ Documents Created' : '⏳ Will Create on First Use';
     
-    statusSection.addWidget(statusGrid);
+    const statusDashboard = CardService.newTextParagraph()
+      .setText(`
+<b>🔑 API Connection:</b> ${apiStatus}<br>
+<b>✍️ Writing Style:</b> ${styleStatus}<br>
+<b>📄 Prompt System:</b> ${promptStatus}<br>
+<br>
+<b>📧 Ready to Generate Responses:</b> ${settings.apiKey && hasStyle ? '✅ Yes' : '⚠️ Complete setup first'}
+      `);
     
-    const statusLabels = CardService.newTextParagraph()
-      .setText('API Key | Style | Prompts');
-    statusSection.addWidget(statusLabels);
+    statusSection.addWidget(statusDashboard);
     
     card.addSection(statusSection);
     
-    // Navigation Actions - NO GENERATE RESPONSE HERE!
+    // Quick Actions Dashboard
     const actionsSection = CardService.newCardSection()
-      .setHeader('<b>🚀 Quick Navigation</b>');
+      .setHeader('<b>🚀 Quick Actions</b>');
     
-    const infoText = CardService.newTextParagraph()
-      .setText('📧 <b>Open any email</b> to see generate response options');
+    const dashboardInfo = CardService.newTextParagraph()
+      .setText(`
+<b>📧 To Generate Responses:</b> Open any email thread<br>
+<b>⚙️ To Configure:</b> Click Settings below<br>
+<b>📝 To Edit Prompts:</b> Click Prompts below<br>
+<b>🧪 To Test API:</b> Go to Settings and click "Test API Key"
+      `);
     
-    actionsSection.addWidget(infoText);
+    actionsSection.addWidget(dashboardInfo);
     
     // Quick access grid
     const quickActions = CardService.newButtonSet()
