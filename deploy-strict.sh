@@ -176,11 +176,14 @@ echo "Verifying deployed version matches local version $NEW_VERSION..."
 TEMP_VERIFY_DIR=$(mktemp -d)
 cd "$TEMP_VERIFY_DIR"
 cp "$OLDPWD/.clasp.json" .
-cp "$OLDPWD/.claspignore" . 2>/dev/null || true
+# Don't copy .claspignore - we want to pull ALL files for verification
 
 echo -e "\n${YELLOW}9.1. Pulling deployed code for verification...${NC}"
-if ! clasp pull > /dev/null 2>&1; then
+# Pull all files from Google Apps Script
+clasp pull --force > /tmp/clasp_pull.log 2>&1
+if [ $? -ne 0 ]; then
   echo -e "${RED}❌ Error: Failed to pull deployed code${NC}"
+  cat /tmp/clasp_pull.log
   cd "$OLDPWD"
   rm -rf "$TEMP_VERIFY_DIR"
   exit 1
