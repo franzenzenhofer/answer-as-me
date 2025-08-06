@@ -65,32 +65,35 @@ namespace Config {
   };
   
   /**
-   * Get user properties
+   * Get user properties - DEPRECATED: Use PropertyManager instead
+   * @deprecated
    */
   export function getUserProperties(): GoogleAppsScript.Properties.Properties {
+    AppLogger.warn('getUserProperties() is deprecated. Use PropertyManager methods instead.');
     return PropertiesService.getUserProperties();
   }
   
   /**
-   * Get a specific property
+   * Get a specific property with thread safety
    */
   export function getProperty(key: string): string {
-    return getUserProperties().getProperty(key) || '';
+    return PropertyManager.getProperty(key, 'user') || '';
   }
   
   /**
-   * Set a property
+   * Set a property with thread safety
    */
   export function setProperty(key: string, value: string): void {
-    getUserProperties().setProperty(key, value);
+    if (!PropertyManager.setProperty(key, value, 'user')) {
+      throw new Error(`Failed to set property: ${key}`);
+    }
   }
   
   /**
-   * Get all settings
+   * Get all settings with thread safety
    */
   export function getSettings(): Types.Config {
-    const props = getUserProperties();
-    const allProps = props.getProperties();
+    const allProps = PropertyManager.getAllProperties('user');
     
     return {
       apiKey: allProps[PROPERTY_KEYS.API_KEY] || DEFAULT_SETTINGS.apiKey,
@@ -105,31 +108,38 @@ namespace Config {
   }
   
   /**
-   * Save settings
+   * Save settings with thread safety
    */
   export function saveSettings(settings: Partial<Types.Config>): void {
-    const props = getUserProperties();
+    const updates: {[key: string]: string} = {};
     
     if (settings.apiKey !== undefined) {
-      props.setProperty(PROPERTY_KEYS.API_KEY, settings.apiKey);
+      updates[PROPERTY_KEYS.API_KEY] = settings.apiKey;
     }
     if (settings.responseMode !== undefined) {
-      props.setProperty(PROPERTY_KEYS.RESPONSE_MODE, settings.responseMode);
+      updates[PROPERTY_KEYS.RESPONSE_MODE] = settings.responseMode;
     }
     if (settings.autoReply !== undefined) {
-      props.setProperty(PROPERTY_KEYS.AUTO_REPLY, String(settings.autoReply));
+      updates[PROPERTY_KEYS.AUTO_REPLY] = String(settings.autoReply);
     }
     if (settings.formalityLevel !== undefined) {
-      props.setProperty(PROPERTY_KEYS.FORMALITY_LEVEL, String(settings.formalityLevel));
+      updates[PROPERTY_KEYS.FORMALITY_LEVEL] = String(settings.formalityLevel);
     }
     if (settings.responseLength !== undefined) {
-      props.setProperty(PROPERTY_KEYS.RESPONSE_LENGTH, settings.responseLength);
+      updates[PROPERTY_KEYS.RESPONSE_LENGTH] = settings.responseLength;
     }
     if (settings.customInstructions !== undefined) {
-      props.setProperty(PROPERTY_KEYS.CUSTOM_INSTRUCTIONS, settings.customInstructions);
+      updates[PROPERTY_KEYS.CUSTOM_INSTRUCTIONS] = settings.customInstructions;
     }
     if (settings.signature !== undefined) {
-      props.setProperty(PROPERTY_KEYS.SIGNATURE, settings.signature);
+      updates[PROPERTY_KEYS.SIGNATURE] = settings.signature;
+    }
+    
+    // Batch update for better performance and atomicity
+    if (Object.keys(updates).length > 0) {
+      if (!PropertyManager.setProperties(updates, 'user')) {
+        throw new Error('Failed to save settings');
+      }
     }
   }
 }

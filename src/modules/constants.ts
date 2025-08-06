@@ -32,7 +32,10 @@ namespace Constants {
     STATUS_FORBIDDEN: 403,
     STATUS_NOT_FOUND: 404,
     STATUS_RATE_LIMIT: 429,
-    STATUS_SERVER_ERROR: 500
+    STATUS_SERVER_ERROR: 500,
+    
+    // UI
+    KEY_MASK: '••••'
   };
 
   // ============================================

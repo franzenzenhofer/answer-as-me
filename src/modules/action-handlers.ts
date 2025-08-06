@@ -89,29 +89,64 @@ namespace ActionHandlers {
    */
   export function saveSettings(e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
-      const formData = e.formInputs as Types.FormData;
+      const formData = e.formInputs;
+      if (!formData || typeof formData !== 'object') {
+        throw new Error('Invalid form data');
+      }
       
       // Build settings object from form
       const updates: Partial<Types.Config> = {};
       
-      if (formData.apiKey && formData.apiKey[0] && !formData.apiKey[0].startsWith('••••')) {
-        updates.apiKey = formData.apiKey[0];
+      // Validate and update API key
+      if ('apiKey' in formData) {
+        const apiKeyArray = (formData as any).apiKey;
+        if (Array.isArray(apiKeyArray) && apiKeyArray.length > 0) {
+          const apiKeyValue = String(apiKeyArray[0]);
+          if (apiKeyValue && !apiKeyValue.startsWith(Constants.API.KEY_MASK)) {
+            // Validate API key format
+            const validation = AI.validateApiKey(apiKeyValue);
+            if (!validation.isValid) {
+              return CardService.newActionResponseBuilder()
+                .setNotification(
+                  CardService.newNotification()
+                    .setText(validation.error || 'Invalid API key')
+                )
+                .build();
+            }
+            updates.apiKey = apiKeyValue;
+          }
+        }
       }
       
-      if (formData.responseMode) {
-        updates.responseMode = formData.responseMode[0] as Types.ResponseMode;
+      // Extract other form values safely
+      const getFormValue = (key: string): string | undefined => {
+        if (key in formData) {
+          const value = (formData as any)[key];
+          if (Array.isArray(value) && value.length > 0) {
+            return String(value[0]);
+          }
+        }
+        return undefined;
+      };
+      
+      const responseMode = getFormValue('responseMode');
+      if (responseMode && ['draft', 'send', 'review'].includes(responseMode)) {
+        updates.responseMode = responseMode as Types.ResponseMode;
       }
       
-      if (formData.responseLength) {
-        updates.responseLength = formData.responseLength[0] as Types.ResponseLength;
+      const responseLength = getFormValue('responseLength');
+      if (responseLength && ['short', 'medium', 'long'].includes(responseLength)) {
+        updates.responseLength = responseLength as Types.ResponseLength;
       }
       
-      if (formData.customInstructions !== undefined) {
-        updates.customInstructions = formData.customInstructions[0] || '';
+      const customInstructions = getFormValue('customInstructions');
+      if (customInstructions !== undefined) {
+        updates.customInstructions = customInstructions.substring(0, 500);
       }
       
-      if (formData.signature !== undefined) {
-        updates.signature = formData.signature[0] || '';
+      const signature = getFormValue('signature');
+      if (signature !== undefined) {
+        updates.signature = signature.substring(0, 200);
       }
       
       // Save settings
@@ -140,8 +175,19 @@ namespace ActionHandlers {
    */
   export function sendResponse(e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
-      const formData = e.formInputs as any;
-      const editedResponse = formData.editedResponse ? formData.editedResponse[0] : '';
+      const formData = e.formInputs;
+      if (!formData || typeof formData !== 'object') {
+        throw new Error('No form data provided');
+      }
+      
+      // Safely extract edited response
+      let editedResponse = '';
+      if ('editedResponse' in formData) {
+        const value = (formData as any).editedResponse;
+        if (Array.isArray(value) && value.length > 0) {
+          editedResponse = String(value[0]);
+        }
+      }
       // const _draftId = e.parameters?.draftId; // Not used in send
       
       if (!editedResponse) {
@@ -192,8 +238,20 @@ namespace ActionHandlers {
    */
   export function saveAsDraft(e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
-      const formData = e.formInputs as any;
-      const editedResponse = formData.editedResponse ? formData.editedResponse[0] : '';
+      const formData = e.formInputs;
+      if (!formData || typeof formData !== 'object') {
+        throw new Error('No form data provided');
+      }
+      
+      // Safely extract edited response
+      let editedResponse = '';
+      if ('editedResponse' in formData) {
+        const value = (formData as any).editedResponse;
+        if (Array.isArray(value) && value.length > 0) {
+          editedResponse = String(value[0]);
+        }
+      }
+      
       const draftId = e.parameters?.draftId;
       
       if (!editedResponse) {
@@ -235,8 +293,20 @@ namespace ActionHandlers {
    */
   export function editResponse(e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
-      const formData = e.formInputs as any;
-      const editedResponse = formData.editedResponse ? formData.editedResponse[0] : '';
+      const formData = e.formInputs;
+      if (!formData || typeof formData !== 'object') {
+        throw new Error('No form data provided');
+      }
+      
+      // Safely extract edited response
+      let editedResponse = '';
+      if ('editedResponse' in formData) {
+        const value = (formData as any).editedResponse;
+        if (Array.isArray(value) && value.length > 0) {
+          editedResponse = String(value[0]);
+        }
+      }
+      
       const draftId = e.parameters?.draftId;
       
       // Re-generate with modifications

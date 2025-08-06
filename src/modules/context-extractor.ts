@@ -24,18 +24,24 @@ namespace ContextExtractor {
       );
     }
     
-    // Get previous messages for context
+    // Get previous messages for context (limit to prevent memory issues)
     const previousMessages: Types.EmailMessage[] = [];
-    const startIndex = Math.max(0, currentIndex - 10); // Last 10 messages max
+    const maxContextMessages = Math.min(Constants.EMAIL.MAX_CONTEXT_MESSAGES, 10);
+    const startIndex = Math.max(0, currentIndex - maxContextMessages);
     
     for (let i = startIndex; i < currentIndex; i++) {
       const msg = messages[i];
       if (msg) {
+        const plainBody = msg.getPlainBody();
+        // Limit body size to prevent memory issues
+        const truncatedBody = plainBody.length > 5000 ? 
+          `${plainBody.substring(0, 5000)  }... [truncated]` : plainBody;
+        
         previousMessages.push({
           from: msg.getFrom(),
           to: msg.getTo(),
           date: msg.getDate(),
-          body: Utils.cleanEmailBody(msg.getPlainBody())
+          body: Utils.cleanEmailBody(truncatedBody)
         });
       }
     }
@@ -64,18 +70,35 @@ namespace ContextExtractor {
     // Check for questions
     const hasQuestion = /\?|^(what|where|when|why|how|who|which|could|would|should|can|will)/im.test(emailBody);
     
-    // Extract potential topics (simple keyword extraction)
-    const words = emailBody.toLowerCase().split(/\s+/);
+    // Extract potential topics (simple keyword extraction with memory optimization)
     const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'them', 'their', 'what', 'which', 'who', 'when', 'where', 'why', 'how']);
     
-    const topics = words
-      .filter(word => word.length > 4 && !stopWords.has(word))
-      .reduce((acc: { [key: string]: number }, word) => {
-        acc[word] = (acc[word] || 0) + 1;
-        return acc;
-      }, {});
+    // Limit text size to prevent memory issues
+    const textToAnalyze = emailBody.length > 10000 ? 
+      emailBody.substring(0, 10000) : emailBody;
     
-    const topTopics = Object.entries(topics)
+    // Use Map for better memory management and limit total unique words
+    const topicCounts = new Map<string, number>();
+    const words = textToAnalyze.toLowerCase().split(/\s+/);
+    
+    for (const word of words) {
+      if (word.length > 4 && !stopWords.has(word)) {
+        topicCounts.set(word, (topicCounts.get(word) || 0) + 1);
+        
+        // Limit map size to prevent memory issues
+        if (topicCounts.size > 100) {
+          // Remove least frequent words
+          const entries = Array.from(topicCounts.entries());
+          entries.sort((a, b) => a[1] - b[1]);
+          if (entries[0]) {
+            topicCounts.delete(entries[0][0]);
+          }
+        }
+      }
+    }
+    
+    // Convert to array and get top topics
+    const topTopics = Array.from(topicCounts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(entry => entry[0]);

@@ -18,6 +18,7 @@ function analyzeDependencies(modulesDir) {
   // Only analyze core module files (exclude test files and optional modules)
   const coreModules = [
     'constants',
+    'property-manager',
     'config',
     'logger', 
     'utils',
@@ -41,6 +42,7 @@ function analyzeDependencies(modulesDir) {
   // Map of namespace names to module files
   const namespaceToModule = {
     'Constants': 'constants',
+    'PropertyManager': 'property-manager',
     'Config': 'config',
     'AppLogger': 'logger', 
     'Utils': 'utils',

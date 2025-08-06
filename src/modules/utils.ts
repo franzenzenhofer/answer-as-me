@@ -47,8 +47,15 @@ namespace Utils {
    * Clean email body text
    */
   export function cleanEmailBody(body: string): string {
+    if (!body || typeof body !== 'string') {
+      return '';
+    }
+    
+    // First sanitize for security
+    let cleaned = sanitizeEmailContent(body);
+    
     // Remove excessive whitespace
-    body = body.replace(Constants.PATTERNS.MULTIPLE_SPACES, ' ').trim();
+    cleaned = cleaned.replace(Constants.PATTERNS.MULTIPLE_SPACES, ' ').trim();
     
     // Remove email signatures (simple heuristic)
     const signaturePatterns = [
@@ -59,10 +66,10 @@ namespace Utils {
     ];
     
     signaturePatterns.forEach(pattern => {
-      body = body.replace(pattern, '').trim();
+      cleaned = cleaned.replace(pattern, '').trim();
     });
     
-    return body;
+    return cleaned;
   }
   
   /**
@@ -106,13 +113,13 @@ namespace Utils {
   }
   
   /**
-   * Retry a function with exponential backoff
+   * Retry a function with exponential backoff (synchronous for Google Apps Script)
    */
-  export async function retryWithBackoff<T>(
+  export function retryWithBackoff<T>(
     fn: () => T,
     maxRetries: number = 3,
     initialDelay: number = 1000
-  ): Promise<T> {
+  ): T {
     let lastError: Error | undefined;
     
     for (let i = 0; i < maxRetries; i++) {
@@ -120,9 +127,27 @@ namespace Utils {
         return fn();
       } catch (error) {
         lastError = error as Error;
+        const errorMessage = lastError.message.toLowerCase();
+        
+        // Check if error is retryable
+        const isRetryable = errorMessage.includes('timeout') ||
+                          errorMessage.includes('timed out') ||
+                          errorMessage.includes('network') ||
+                          errorMessage.includes('temporarily') ||
+                          errorMessage.includes('500') ||
+                          errorMessage.includes('502') ||
+                          errorMessage.includes('503') ||
+                          errorMessage.includes('504');
+        
+        if (!isRetryable) {
+          throw error; // Don't retry non-network errors
+        }
+        
         if (i < maxRetries - 1) {
-          const delay = initialDelay * Math.pow(2, i);
-          AppLogger.info(`Retry ${i + 1}/${maxRetries} after ${delay}ms`);
+          const delay = Math.min(initialDelay * Math.pow(2, i), 10000); // Max 10 seconds
+          AppLogger.info(`Retry ${i + 1}/${maxRetries} after ${delay}ms`, {
+            error: errorMessage
+          });
           sleep(delay);
         }
       }
@@ -132,18 +157,52 @@ namespace Utils {
   }
   
   /**
-   * Escape HTML entities
+   * Escape HTML entities for XSS protection
    */
   export function escapeHtml(text: string): string {
+    if (!text || typeof text !== 'string') {
+      return '';
+    }
+    
     const htmlEntities: { [key: string]: string } = {
       '&': '&amp;',
       '<': '&lt;',
       '>': '&gt;',
       '"': '&quot;',
-      "'": '&#39;'
+      "'": '&#39;',
+      '/': '&#x2F;',
+      '=': '&#x3D;',
+      '`': '&#x60;'
     };
     
-    return text.replace(/[&<>"']/g, char => htmlEntities[char] || char);
+    return text.replace(/[&<>"'\/=`]/g, char => htmlEntities[char] || char);
+  }
+  
+  /**
+   * Sanitize email content for safe display
+   * Removes potentially dangerous content while preserving text
+   */
+  export function sanitizeEmailContent(content: string): string {
+    if (!content || typeof content !== 'string') {
+      return '';
+    }
+    
+    // Remove any script tags and their content
+    let sanitized = content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    
+    // Remove any style tags to prevent CSS injection
+    sanitized = sanitized.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+    
+    // Remove event handlers
+    sanitized = sanitized.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
+    
+    // Remove javascript: protocol
+    sanitized = sanitized.replace(/javascript:/gi, '');
+    
+    // Remove data: URLs that could contain scripts
+    sanitized = sanitized.replace(/data:text\/html[^,]*,/gi, '');
+    
+    return sanitized;
   }
   
   /**
@@ -174,5 +233,40 @@ namespace Utils {
   export function extractDomain(email: string): string {
     const parts = email.split('@');
     return parts.length > 1 && parts[1] ? parts[1].toLowerCase() : '';
+  }
+  
+  /**
+   * Execute URL fetch with timeout monitoring
+   */
+  export function fetchWithTimeout(
+    url: string,
+    options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions
+  ): GoogleAppsScript.URL_Fetch.HTTPResponse {
+    const startTime = new Date().getTime();
+    
+    try {
+      // Note: Google Apps Script doesn't support true timeouts
+      // We can only monitor how long the request takes
+      const response = UrlFetchApp.fetch(url, options);
+      
+      const elapsedTime = new Date().getTime() - startTime;
+      if (elapsedTime > Constants.API.TIMEOUT_MS) {
+        AppLogger.warn('Request exceeded expected timeout', {
+          url,
+          elapsedMs: elapsedTime,
+          expectedTimeoutMs: Constants.API.TIMEOUT_MS
+        });
+      }
+      
+      return response;
+    } catch (error) {
+      const elapsedTime = new Date().getTime() - startTime;
+      AppLogger.error('Network request failed', {
+        url,
+        elapsedMs: elapsedTime,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
   }
 }

@@ -40,15 +40,34 @@ namespace GoogleDocsPrompts {
    * Get or create a prompt document for a specific type
    */
   export function getOrCreatePromptDocument(promptType: string): string {
-    const properties = PropertiesService.getUserProperties();
+    // Validate prompt type to prevent injection
+    if (!promptType || typeof promptType !== 'string' || promptType.length > 50) {
+      throw new Error('Invalid prompt type');
+    }
+    
+    // Only allow known prompt types or alphanumeric custom types
+    const knownTypes = Object.values(Constants.PROMPTS.TYPES);
+    if (!knownTypes.includes(promptType) && !/^[a-zA-Z0-9_-]+$/.test(promptType)) {
+      throw new Error('Invalid prompt type format');
+    }
+    
     const docIdKey = `${Constants.PROMPTS.DOC_ID_PREFIX}${promptType}`;
-    let docId = properties.getProperty(docIdKey);
+    let docId = PropertyManager.getProperty(docIdKey, 'user');
 
     if (!docId) {
       try {
-        // Create new document with proper title
+        // Create new document with sanitized title
         const docName = Constants.PROMPTS.DOC_NAMES[promptType] || promptType;
-        const title = `${Constants.PROMPTS.DOC_TITLE_PREFIX} ${docName}`;
+        // Sanitize title to prevent injection
+        const sanitizedDocName = docName
+          .replace(/[^a-zA-Z0-9\s\-_]/g, '') // Remove special characters
+          .substring(0, 100); // Limit length
+        
+        if (!sanitizedDocName.trim()) {
+          throw new Error('Invalid prompt type name');
+        }
+        
+        const title = `${Constants.PROMPTS.DOC_TITLE_PREFIX} ${sanitizedDocName}`;
         const doc = DocumentApp.create(title);
         docId = doc.getId();
         
@@ -60,8 +79,8 @@ namespace GoogleDocsPrompts {
         // Style the document
         styleDocument(body);
         
-        // Save document ID
-        properties.setProperty(docIdKey, docId);
+        // Save document ID with thread safety
+        PropertyManager.setProperty(docIdKey, docId, 'user');
         
         // Make it accessible to user
         const file = DriveApp.getFileById(docId);
@@ -145,9 +164,9 @@ namespace GoogleDocsPrompts {
       // Update cache
       updateCache(promptType, document);
 
-      // Store version for comparison
+      // Store version for comparison with thread safety
       const versionKey = `${Constants.PROMPTS.VERSION_PREFIX}${promptType}`;
-      PropertiesService.getUserProperties().setProperty(versionKey, version);
+      PropertyManager.setProperty(versionKey, version, 'user');
 
       AppLogger.info('Fetched prompt from document', { promptType, version });
       return document;
@@ -164,18 +183,18 @@ namespace GoogleDocsPrompts {
    */
   export function getAllPromptStatuses(): PromptStatus[] {
     const statuses: PromptStatus[] = [];
-    const properties = PropertiesService.getUserProperties();
+    const properties = PropertyManager.getAllProperties('user');
     
     for (const typeName of Object.values(Constants.PROMPTS.TYPES)) {
       const docIdKey = `${Constants.PROMPTS.DOC_ID_PREFIX}${typeName}`;
       const versionKey = `${Constants.PROMPTS.VERSION_PREFIX}${typeName}`;
-      const docId = properties.getProperty(docIdKey);
+      const docId = properties[docIdKey];
       
       const status: PromptStatus = {
         type: typeName,
         hasDoc: !!docId,
-        docId: docId,
-        version: properties.getProperty(versionKey) || Constants.PROMPTS.DEFAULT_VERSION,
+        docId: docId || null,
+        version: properties[versionKey] || Constants.PROMPTS.DEFAULT_VERSION,
         lastChecked: new Date() as GoogleAppsScript.Base.Date,
         hasUpdate: false,
         url: null
@@ -436,17 +455,29 @@ Update the user profile with these specific learnings.`,
   ): { document: PromptDocument; cachedAt: GoogleAppsScript.Base.Date } | null {
     try {
       const cacheKey = `${Constants.PROMPTS.CACHE_PREFIX}${promptType}`;
-      const cached = PropertiesService.getUserProperties().getProperty(cacheKey);
+      const cached = PropertyManager.getProperty(cacheKey, 'user');
       if (!cached) {
         return null;
       }
       
       const data = JSON.parse(cached);
+      // Validate cache structure
+      if (!data.document || !data.cachedAt) {
+        AppLogger.warn('Invalid cache structure', { promptType });
+        return null;
+      }
+      
       return {
         document: data.document,
         cachedAt: new Date(data.cachedAt)
       };
-    } catch {
+    } catch (error) {
+      AppLogger.warn('Failed to parse cached prompt', { promptType, error });
+      // Clear corrupted cache
+      try {
+        const cacheKey = `${Constants.PROMPTS.CACHE_PREFIX}${promptType}`;
+        PropertyManager.deleteProperty(cacheKey, 'user');
+      } catch {}
       return null;
     }
   }
@@ -456,9 +487,10 @@ Update the user profile with these specific learnings.`,
       const cacheKey = `${Constants.PROMPTS.CACHE_PREFIX}${promptType}`;
       const data = {
         document,
-        cachedAt: new Date()
+        cachedAt: new Date(),
+        cacheVersion: Utilities.getUuid() // Add cache version for invalidation tracking
       };
-      PropertiesService.getUserProperties().setProperty(cacheKey, JSON.stringify(data));
+      PropertyManager.setProperty(cacheKey, JSON.stringify(data), 'user');
     } catch (error) {
       AppLogger.error('Failed to update prompt cache', { promptType, error });
     }
@@ -477,9 +509,8 @@ Update the user profile with these specific learnings.`,
       return;
     }
     
-    const properties = PropertiesService.getUserProperties();
     const lastCheckKey = Constants.PROPERTIES.PROMPTS_LAST_CHECK;
-    const lastCheck = properties.getProperty(lastCheckKey);
+    const lastCheck = PropertyManager.getProperty(lastCheckKey, 'user');
     
     if (lastCheck) {
       const timeSinceCheck = Date.now() - parseInt(lastCheck);
@@ -498,6 +529,6 @@ Update the user profile with these specific learnings.`,
       });
     }
     
-    properties.setProperty(lastCheckKey, Date.now().toString());
+    PropertyManager.setProperty(lastCheckKey, Date.now().toString(), 'user');
   }
 }

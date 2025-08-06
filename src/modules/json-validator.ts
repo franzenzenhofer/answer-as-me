@@ -10,10 +10,49 @@ namespace JsonValidator {
    * Validate and parse JSON safely
    */
   export function parseJson<T>(jsonString: string, context: string): T | null {
+    if (!jsonString || typeof jsonString !== 'string') {
+      AppLogger.error(`Invalid JSON input in ${context}`, {
+        type: typeof jsonString,
+        value: jsonString
+      });
+      return null;
+    }
+    
     try {
-      return JSON.parse(jsonString);
+      // Remove any BOM or invalid characters at the start
+      const cleanJson = jsonString.trim().replace(/^\uFEFF/, '');
+      
+      // Basic validation
+      if (!cleanJson.startsWith('{') && !cleanJson.startsWith('[')) {
+        AppLogger.error(`JSON does not start with { or [ in ${context}`, {
+          start: cleanJson.substring(0, 50)
+        });
+        return null;
+      }
+      
+      return JSON.parse(cleanJson);
     } catch (error) {
-      AppLogger.error(`JSON parse failed in ${context}`, error);
+      // Log detailed error information
+      const errorDetails: any = {
+        message: error instanceof Error ? error.message : String(error),
+        context,
+        jsonLength: jsonString.length
+      };
+      
+      // Try to find the error position
+      if (error instanceof SyntaxError && error.message.includes('position')) {
+        const match = error.message.match(/position (\d+)/);
+        if (match && match[1]) {
+          const position = parseInt(match[1]);
+          errorDetails.errorPosition = position;
+          errorDetails.nearError = jsonString.substring(
+            Math.max(0, position - 50),
+            Math.min(jsonString.length, position + 50)
+          );
+        }
+      }
+      
+      AppLogger.error(`JSON parse failed in ${context}`, errorDetails);
       return null;
     }
   }
