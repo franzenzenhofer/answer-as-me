@@ -248,7 +248,8 @@ namespace GoogleDocsPrompts {
     promptType: string,
     variables: { [key: string]: string } = {}
   ): string {
-    const doc = fetchPrompt(promptType);
+    // Always force refresh to ensure we use the latest document content
+    const doc = fetchPrompt(promptType, true);
     let content = doc.content;
     
     // Replace variables

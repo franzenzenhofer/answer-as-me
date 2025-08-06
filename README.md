@@ -69,7 +69,11 @@ npm run open
 2. Go to **Deploy > Test deployments**
 3. Click **Install** to add the add-on to Gmail
 4. Open Gmail and look for the "Answer As Me" icon in the sidebar
-5. Enter your Gemini API key and save
+5. **Set your API key:**
+   - Click the Answer As Me icon in Gmail's right sidebar
+   - Click the **Settings** button at the bottom of the panel
+   - Enter your Gemini API key in the text field
+   - Click **Save**
 
 ## Usage
 

@@ -103,3 +103,24 @@ function handleCreatePromptDoc(e: GoogleAppsScript.Addons.EventObject): GoogleAp
 function handleUpdateAllPrompts(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
   return ActionHandlers.handleUpdateAllPrompts(e);
 }
+
+/**
+ * Show prompt editor (universal action)
+ */
+function onPromptEditor(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
+  return EntryPoints.onPromptEditor(e);
+}
+
+/**
+ * Open prompts document (universal action)
+ */
+function onViewPromptsDoc(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.openPromptsDocument(e);
+}
+
+/**
+ * Show style analysis (universal action)
+ */
+function onStyleAnalysis(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
+  return EntryPoints.onStyleAnalysis(e);
+}

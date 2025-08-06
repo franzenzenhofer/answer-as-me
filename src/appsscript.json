@@ -20,6 +20,18 @@
           "runFunction": "onSettings"
         },
         {
+          "label": "Prompt Editor",
+          "runFunction": "onPromptEditor"
+        },
+        {
+          "label": "View Prompts Doc",
+          "runFunction": "onViewPromptsDoc"
+        },
+        {
+          "label": "Style Analysis",
+          "runFunction": "onStyleAnalysis"
+        },
+        {
           "label": "Help",
           "runFunction": "onHelp"
         }

@@ -8,6 +8,7 @@ namespace UI {
     
     // Add sections
     card.addSection(buildInfoSection());
+    card.addSection(buildQuickLinksSection());
     card.addSection(buildConfigSection(settings));
     card.addSection(buildSettingsSection(settings));
     card.addSection(buildActionSection());
@@ -52,6 +53,46 @@ namespace UI {
       
       section.addWidget(deployText);
     }
+    
+    return section;
+  }
+  
+  /**
+   * Build quick links section
+   */
+  function buildQuickLinksSection(): GoogleAppsScript.Card_Service.CardSection {
+    const section = CardService.newCardSection()
+      .setHeader('Quick Access');
+    
+    // Manage Prompts button
+    const promptsButton = CardService.newTextButton()
+      .setText('📝 Manage Prompts')
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('onPromptEditor')
+      );
+    section.addWidget(promptsButton);
+    
+    // View Style Analysis button
+    const styleButton = CardService.newTextButton()
+      .setText('✍️ View Your Style')
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('onStyleAnalysis')
+      );
+    section.addWidget(styleButton);
+    
+    // Open Prompts Document button
+    const docsButton = CardService.newTextButton()
+      .setText('📄 Open Prompts Doc')
+      .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('onViewPromptsDoc')
+      );
+    section.addWidget(docsButton);
     
     return section;
   }
@@ -450,7 +491,227 @@ namespace UI {
       );
     
     buttonSection.addWidget(promptLink);
+    
+    // Prompts document section
+    const promptsDocSection = CardService.newCardSection()
+      .setHeader('<b>Prompts Document</b>');
+    
+    // Get current prompts doc ID
+    const promptsDocId = PropertyManager.getProperty(Constants.PROPERTIES.PROMPTS_DOC_ID, 'script');
+    if (promptsDocId) {
+      try {
+        const doc = DocumentApp.openById(promptsDocId);
+        const url = doc.getUrl();
+        
+        const docInfo = CardService.newDecoratedText()
+          .setText(doc.getName())
+          .setTopLabel('Current Prompts Document')
+          .setBottomLabel(`ID: ${promptsDocId}`)
+          .setIcon(CardService.Icon.DESCRIPTION);
+        promptsDocSection.addWidget(docInfo);
+        
+        // Direct link to document
+        const docLink = CardService.newTextParagraph()
+          .setText(`<a href="${url}">📄 Open in Google Docs</a>`);
+        promptsDocSection.addWidget(docLink);
+        
+        const editDocsButton = CardService.newTextButton()
+          .setText('📝 Edit Prompts')
+          .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onViewPromptsDoc')
+          );
+        promptsDocSection.addWidget(editDocsButton);
+        
+        // Info about fresh loading
+        const infoText = CardService.newTextParagraph()
+          .setText('<i>✅ Prompts are loaded fresh from this document on every AI request</i>');
+        promptsDocSection.addWidget(infoText);
+      } catch (error) {
+        AppLogger.error('Failed to load prompt document info', error);
+        const errorText = CardService.newTextParagraph()
+          .setText('Error loading prompt document. Click "Manage Prompts" to recreate.');
+        promptsDocSection.addWidget(errorText);
+      }
+    } else {
+      const noDocText = CardService.newTextParagraph()
+        .setText('No prompts document created yet. Click "Manage Prompts" to create one.');
+      promptsDocSection.addWidget(noDocText);
+    }
+    
+    card.addSection(promptsDocSection);
     card.addSection(buttonSection);
+    
+    return card.build();
+  }
+  
+  /**
+   * Build Prompt Editor card
+   */
+  export function buildPromptEditorCard(): GoogleAppsScript.Card_Service.Card {
+    const card = CardService.newCardBuilder();
+    
+    card.setHeader(
+      CardService.newCardHeader()
+        .setTitle('Prompt Editor')
+        .setSubtitle('Customize AI prompts')
+    );
+    
+    // Prompt types section
+    const section = CardService.newCardSection()
+      .setHeader('Available Prompts');
+    
+    // Main prompt
+    const mainPromptButton = CardService.newTextButton()
+      .setText('Edit Main Response Prompt')
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('handleCreatePromptDoc')
+          .setParameters({ promptType: 'main' })
+      );
+    section.addWidget(mainPromptButton);
+    
+    // Style analysis prompt
+    const stylePromptButton = CardService.newTextButton()
+      .setText('Edit Style Analysis Prompt')
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('handleCreatePromptDoc')
+          .setParameters({ promptType: 'style' })
+      );
+    section.addWidget(stylePromptButton);
+    
+    // Profile prompt
+    const profilePromptButton = CardService.newTextButton()
+      .setText('Edit Profile Generation Prompt')
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('handleCreatePromptDoc')
+          .setParameters({ promptType: 'profile' })
+      );
+    section.addWidget(profilePromptButton);
+    
+    // Instructions
+    const instructionSection = CardService.newCardSection();
+    instructionSection.addWidget(
+      CardService.newTextParagraph()
+        .setText('<b>How it works:</b><br>' +
+          '• Click a prompt type above to open in Google Docs<br>' +
+          '• Edit the prompt content directly in the document<br>' +
+          '• Changes are saved automatically<br>' +
+          '• The AI will use your custom prompts immediately')
+    );
+    
+    // Update all button
+    const updateButton = CardService.newTextButton()
+      .setText('Update All Prompts')
+      .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('handleUpdateAllPrompts')
+      );
+    instructionSection.addWidget(updateButton);
+    
+    card.addSection(section);
+    card.addSection(instructionSection);
+    
+    return card.build();
+  }
+  
+  /**
+   * Build Style Analysis card
+   */
+  export function buildStyleAnalysisCard(style: Types.WritingStyle | null): GoogleAppsScript.Card_Service.Card {
+    const card = CardService.newCardBuilder();
+    
+    card.setHeader(
+      CardService.newCardHeader()
+        .setTitle('Your Writing Style')
+        .setSubtitle('AI analysis of your email patterns')
+    );
+    
+    if (!style) {
+      const errorSection = CardService.newCardSection();
+      errorSection.addWidget(
+        CardService.newTextParagraph()
+          .setText('No writing style analysis available yet.<br><br>' +
+            'Send some emails first, then the AI will learn your style.')
+      );
+      
+      const refreshButton = CardService.newTextButton()
+        .setText('Analyze Now')
+        .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+        .setOnClickAction(
+          CardService.newAction()
+            .setFunctionName('onStyleAnalysis')
+        );
+      errorSection.addWidget(refreshButton);
+      
+      card.addSection(errorSection);
+      return card.build();
+    }
+    
+    // Style details
+    const styleSection = CardService.newCardSection()
+      .setHeader('Communication Style');
+    
+    // Formality
+    const formalityText = CardService.newDecoratedText()
+      .setText(Constants.STYLE.FORMALITY_LABELS[style.formalityLevel - 1] || 'Neutral')
+      .setTopLabel('Formality Level')
+      .setIcon(CardService.Icon.PERSON);
+    styleSection.addWidget(formalityText);
+    
+    // Tone - removed as not in WritingStyle type
+    
+    // Punctuation
+    const punctuationText = CardService.newDecoratedText()
+      .setText(style.punctuationStyle || 'Standard')
+      .setTopLabel('Punctuation Style')
+      .setIcon(CardService.Icon.STAR);
+    styleSection.addWidget(punctuationText);
+    
+    card.addSection(styleSection);
+    
+    // Greetings section
+    if (style.greetings && style.greetings.length > 0) {
+      const greetingSection = CardService.newCardSection()
+        .setHeader('Common Greetings');
+      
+      const greetingText = CardService.newTextParagraph()
+        .setText(style.greetings.join('<br>'));
+      greetingSection.addWidget(greetingText);
+      
+      card.addSection(greetingSection);
+    }
+    
+    // Closings section
+    if (style.closings && style.closings.length > 0) {
+      const closingSection = CardService.newCardSection()
+        .setHeader('Common Closings');
+      
+      const closingText = CardService.newTextParagraph()
+        .setText(style.closings.join('<br>'));
+      closingSection.addWidget(closingText);
+      
+      card.addSection(closingSection);
+    }
+    
+    // Patterns section - removed as not in WritingStyle type
+    
+    // Refresh button
+    const actionSection = CardService.newCardSection();
+    const refreshButton = CardService.newTextButton()
+      .setText('Refresh Analysis')
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('onStyleAnalysis')
+      );
+    actionSection.addWidget(refreshButton);
+    
+    card.addSection(actionSection);
     
     return card.build();
   }

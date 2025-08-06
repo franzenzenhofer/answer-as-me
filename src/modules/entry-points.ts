@@ -146,4 +146,29 @@ namespace EntryPoints {
       return ErrorHandling.handleError(error);
     }
   }
+  
+  /**
+   * Prompt Editor universal action
+   */
+  export function onPromptEditor(_e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
+    try {
+      AppLogger.info('Prompt Editor opened');
+      return UI.buildPromptEditorCard();
+    } catch (error) {
+      return ErrorHandling.handleError(error);
+    }
+  }
+  
+  /**
+   * Style Analysis universal action
+   */
+  export function onStyleAnalysis(_e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
+    try {
+      AppLogger.info('Style Analysis opened');
+      const style = AI.getWritingStyle();
+      return UI.buildStyleAnalysisCard(style);
+    } catch (error) {
+      return ErrorHandling.handleError(error);
+    }
+  }
 }

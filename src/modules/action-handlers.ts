@@ -51,10 +51,15 @@ namespace ActionHandlers {
       const aiResponse = AI.generateEmailResponse(context, style, userProfile, settings.apiKey);
       
       if (!aiResponse.success || !aiResponse.response) {
+        // Provide detailed error message
+        let userMessage = 'Failed to generate response';
+        if (aiResponse.error) {
+          userMessage = aiResponse.error;
+        }
         throw new ErrorHandling.AppError(
           'Failed to generate response',
           'AI_ERROR',
-          aiResponse.error || 'Could not generate response'
+          userMessage
         );
       }
       
@@ -75,10 +80,46 @@ namespace ActionHandlers {
         
     } catch (error) {
       AppLogger.error('Failed to generate response', error);
+      
+      // Provide detailed error message to user
+      let errorMessage = 'Failed to generate response';
+      if (error instanceof ErrorHandling.AppError) {
+        errorMessage = error.userMessage || error.message;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      // Create error card with detailed message
+      const errorCard = CardService.newCardBuilder()
+        .setHeader(
+          CardService.newCardHeader()
+            .setTitle('❌ Error Generating Response')
+        )
+        .addSection(
+          CardService.newCardSection()
+            .addWidget(
+              CardService.newTextParagraph()
+                .setText(`<b>Error:</b> ${errorMessage}`)
+            )
+            .addWidget(
+              CardService.newTextParagraph()
+                .setText('<b>What to do:</b>')
+            )
+            .addWidget(
+              CardService.newTextParagraph()
+                .setText('• Check your API key in Settings<br>• Ensure you have internet connection<br>• Try again in a moment<br>• If error persists, contact support')
+            )
+        )
+        .build();
+      
       return CardService.newActionResponseBuilder()
         .setNotification(
           CardService.newNotification()
-            .setText(error instanceof ErrorHandling.AppError ? error.userMessage || error.message : 'Failed to generate response')
+            .setText(errorMessage)
+        )
+        .setNavigation(
+          CardService.newNavigation()
+            .pushCard(errorCard)
         )
         .build();
     }
@@ -498,6 +539,38 @@ namespace ActionHandlers {
         .setNotification(
           CardService.newNotification()
             .setText('Failed to update prompts')
+        )
+        .build();
+    }
+  }
+  
+  /**
+   * Open prompts document (universal action)
+   */
+  export function openPromptsDocument(_e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      AppLogger.info('Opening prompts document');
+      
+      // Get or create the main prompts document
+      const docId = GoogleDocsPrompts.getOrCreatePromptDocument('main');
+      const doc = DocumentApp.openById(docId);
+      const url = doc.getUrl();
+      
+      // Open the document in a new tab
+      return CardService.newActionResponseBuilder()
+        .setOpenLink(
+          CardService.newOpenLink()
+            .setUrl(url)
+            .setOpenAs(CardService.OpenAs.FULL_SIZE)
+            .setOnClose(CardService.OnClose.RELOAD_ADD_ON)
+        )
+        .build();
+    } catch (error) {
+      AppLogger.error('Failed to open prompts document', error);
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText('Failed to open prompts document. Please check permissions.')
         )
         .build();
     }

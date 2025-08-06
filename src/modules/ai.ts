@@ -116,10 +116,66 @@ namespace AI {
       const responseCode = response.getResponseCode();
       
       if (responseCode !== Constants.API.STATUS_OK) {
-        AppLogger.error(`Gemini API error: ${responseCode}`, response.getContentText());
+        const errorContent = response.getContentText();
+        AppLogger.error(`Gemini API error: ${responseCode}`, errorContent);
+        
+        // Parse error response for detailed message
+        let errorMessage = `API error: ${responseCode}`;
+        try {
+          const errorData = JSON.parse(errorContent);
+          if (errorData.error) {
+            const apiError = errorData.error;
+            
+            // Provide specific error messages based on error type
+            switch (responseCode) {
+            case 400:
+              if (apiError.message.includes('API_KEY_INVALID')) {
+                errorMessage = 'Invalid API key. Please check your API key in Settings.';
+              } else if (apiError.message.includes('REQUEST_SIZE')) {
+                errorMessage = 'Email content too large. Try a shorter email.';
+              } else {
+                errorMessage = `Bad request: ${apiError.message}`;
+              }
+              break;
+                
+            case 401:
+              errorMessage = 'API key not authorized. Please check your API key is active.';
+              break;
+                
+            case 403:
+              if (apiError.message.includes('PERMISSION_DENIED')) {
+                errorMessage = 'Permission denied. Check API key permissions.';
+              } else if (apiError.message.includes('BILLING')) {
+                errorMessage = 'Billing not enabled for this API key.';
+              } else if (apiError.message.includes('LOCATION')) {
+                errorMessage = 'Gemini API not available in your location.';
+              } else {
+                errorMessage = `Access forbidden: ${apiError.message}`;
+              }
+              break;
+                
+            case 429:
+              errorMessage = 'Too many requests. Please wait a moment and try again.';
+              break;
+                
+            case 500:
+            case 502:
+            case 503:
+              errorMessage = 'Google server error. Please try again in a few minutes.';
+              break;
+                
+            default:
+              errorMessage = apiError.message || `API error: ${responseCode}`;
+            }
+          }
+        } catch (parseError) {
+          // If we can't parse the error, use the response code
+          AppLogger.warn('Could not parse API error response', parseError);
+        }
+        
         return {
           success: false,
-          error: `API error: ${responseCode}`
+          error: errorMessage
         };
       }
       
@@ -180,6 +236,7 @@ namespace AI {
     } catch (error) {
       // Check if error is timeout-related
       const errorMessage = error instanceof Error ? error.message : String(error);
+      
       if (errorMessage.toLowerCase().includes('timeout') || 
           errorMessage.toLowerCase().includes('timed out')) {
         AppLogger.error('API request timed out', {
@@ -188,14 +245,41 @@ namespace AI {
         });
         return {
           success: false,
-          error: 'Request timed out. Please try again.'
+          error: 'Request timed out. Check your internet connection and try again.'
+        };
+      }
+      
+      // Check for network errors
+      if (errorMessage.toLowerCase().includes('fetch failed') ||
+          errorMessage.toLowerCase().includes('network') ||
+          errorMessage.toLowerCase().includes('dns')) {
+        AppLogger.error('Network error', {
+          error: errorMessage,
+          url: Config.GEMINI_API_URL
+        });
+        return {
+          success: false,
+          error: 'Network error. Please check your internet connection.'
+        };
+      }
+      
+      // Check for SSL/certificate errors
+      if (errorMessage.toLowerCase().includes('ssl') ||
+          errorMessage.toLowerCase().includes('certificate')) {
+        AppLogger.error('SSL error', {
+          error: errorMessage,
+          url: Config.GEMINI_API_URL
+        });
+        return {
+          success: false,
+          error: 'Security error. Please check your network settings.'
         };
       }
       
       AppLogger.error('Gemini API call failed', error);
       return {
         success: false,
-        error: errorMessage
+        error: `Error: ${errorMessage}. Please try again or contact support.`
       };
     }
   }
