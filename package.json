@@ -1,6 +1,6 @@
 {
   "name": "answer-as-me",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Gmail Add-on that uses AI to draft personalized email responses as Franz Enzenhofer",
   "main": "dist/Code.gs",
   "scripts": {
