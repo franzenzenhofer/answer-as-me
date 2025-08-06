@@ -1,0 +1,16 @@
+# Ignore everything except the bundled files
+**/**
+
+# Allow only the necessary files
+!appsscript.json
+!Code.gs
+!dist/appsscript.json
+!dist/Code.gs
+
+# Ignore all source files
+src/**
+dist/src/**
+*.js
+*.ts
+README.md
+dist/README.md
