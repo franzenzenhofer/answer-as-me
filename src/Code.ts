@@ -75,3 +75,31 @@ function saveAsDraft(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.C
 function editResponse(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
   return ActionHandlers.editResponse(e);
 }
+
+/**
+ * Learn from thread action
+ */
+function learnFromThread(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.learnFromThread(e);
+}
+
+/**
+ * Show prompt management
+ */
+function showPromptManagement(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.showPromptManagement(e);
+}
+
+/**
+ * Handle create prompt document
+ */
+function handleCreatePromptDoc(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.handleCreatePromptDoc(e);
+}
+
+/**
+ * Handle update all prompts
+ */
+function handleUpdateAllPrompts(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.handleUpdateAllPrompts(e);
+}

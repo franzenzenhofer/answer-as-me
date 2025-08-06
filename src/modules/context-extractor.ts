@@ -85,8 +85,11 @@ namespace ContextExtractor {
     const negativeWords = (emailBody.match(/\b(bad|poor|terrible|awful|disappointed|unhappy|problem|issue|concern|complaint)\b/gi) || []).length;
     
     let sentiment = 'neutral';
-    if (positiveWords > negativeWords * 2) sentiment = 'positive';
-    else if (negativeWords > positiveWords * 2) sentiment = 'negative';
+    if (positiveWords > negativeWords * 2) {
+      sentiment = 'positive';
+    } else if (negativeWords > positiveWords * 2) {
+      sentiment = 'negative';
+    }
     
     return {
       hasQuestion,

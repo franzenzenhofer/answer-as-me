@@ -117,6 +117,9 @@ namespace StyleImprover {
       // Keep current average sentence length
       averageSentenceLength: current.averageSentenceLength,
       
+      // Keep current email length preference
+      emailLength: current.emailLength,
+      
       // Update punctuation style if different
       punctuationStyle: threadPatterns.punctuationStyle || current.punctuationStyle
     };
@@ -178,8 +181,12 @@ namespace StyleImprover {
       .length;
     
     // Calculate formality score
-    if (casualCount > formalCount * 2) return Constants.STYLE.FORMALITY_CASUAL;
-    if (formalCount > casualCount * 2) return Constants.STYLE.FORMALITY_FORMAL;
+    if (casualCount > formalCount * 2) {
+      return Constants.STYLE.FORMALITY_CASUAL;
+    }
+    if (formalCount > casualCount * 2) {
+      return Constants.STYLE.FORMALITY_FORMAL;
+    }
     return Constants.STYLE.FORMALITY_NEUTRAL;
   }
   
@@ -193,9 +200,15 @@ namespace StyleImprover {
     const ellipsisCount = (text.match(/\.\.\./g) || []).length;
     const dashCount = (text.match(/--|-/g) || []).length;
     
-    if (exclamationRatio > 0.1) return 'enthusiastic';
-    if (ellipsisCount > 0) return 'casual';
-    if (dashCount > sentences.length * 0.1) return 'detailed';
+    if (exclamationRatio > 0.1) {
+      return 'enthusiastic';
+    }
+    if (ellipsisCount > 0) {
+      return 'casual';
+    }
+    if (dashCount > sentences.length * 0.1) {
+      return 'detailed';
+    }
     return Constants.STYLE.DEFAULT_PUNCTUATION;
   }
 }

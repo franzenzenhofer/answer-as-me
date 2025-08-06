@@ -60,8 +60,8 @@ namespace Config {
   
   // System prompts
   export const PROMPTS = {
-    STYLE_ANALYSIS: Constants.PROMPTS.STYLE_ANALYSIS,
-    RESPONSE_GENERATION: Constants.PROMPTS.RESPONSE_GENERATION
+    STYLE_ANALYSIS: Constants.PROMPTS.TYPES.STYLE_ANALYSIS,
+    RESPONSE_GENERATION: Constants.PROMPTS.TYPES.RESPONSE_GENERATION
   };
   
   /**
@@ -97,7 +97,8 @@ namespace Config {
       responseMode: (allProps[PROPERTY_KEYS.RESPONSE_MODE] as Types.ResponseMode) || DEFAULT_SETTINGS.responseMode,
       autoReply: allProps[PROPERTY_KEYS.AUTO_REPLY] === 'true',
       formalityLevel: parseInt(allProps[PROPERTY_KEYS.FORMALITY_LEVEL] || String(DEFAULT_SETTINGS.formalityLevel)),
-      responseLength: (allProps[PROPERTY_KEYS.RESPONSE_LENGTH] as Types.ResponseLength) || DEFAULT_SETTINGS.responseLength,
+      responseLength: (allProps[PROPERTY_KEYS.RESPONSE_LENGTH] as Types.ResponseLength) || 
+        DEFAULT_SETTINGS.responseLength,
       customInstructions: allProps[PROPERTY_KEYS.CUSTOM_INSTRUCTIONS] || DEFAULT_SETTINGS.customInstructions,
       signature: allProps[PROPERTY_KEYS.SIGNATURE] || DEFAULT_SETTINGS.signature
     };

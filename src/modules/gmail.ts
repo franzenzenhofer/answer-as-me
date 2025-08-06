@@ -64,7 +64,9 @@ namespace GmailService {
   /**
    * Get current message from event
    */
-  export function getCurrentMessage(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Gmail.GmailMessage | null {
+  export function getCurrentMessage(
+    e: GoogleAppsScript.Addons.EventObject
+  ): GoogleAppsScript.Gmail.GmailMessage | null {
     if (!e.gmail || !e.gmail.messageId) {
       AppLogger.warn('No Gmail message in event');
       return null;
@@ -122,7 +124,9 @@ namespace GmailService {
   /**
    * Get inbox threads
    */
-  export function getInboxThreads(maxThreads: number = Constants.EMAIL.MAX_THREADS_TO_PROCESS): GoogleAppsScript.Gmail.GmailThread[] {
+  export function getInboxThreads(
+    maxThreads: number = Constants.EMAIL.MAX_THREADS_TO_PROCESS
+  ): GoogleAppsScript.Gmail.GmailThread[] {
     return GmailApp.getInboxThreads(0, maxThreads);
   }
   
@@ -137,6 +141,36 @@ namespace GmailService {
     } catch (error) {
       AppLogger.error('Failed to check email quota', error);
       return false;
+    }
+  }
+  
+  /**
+   * Get recent sent emails for style analysis
+   */
+  export function getRecentSentEmails(limit: number): { body: string }[] {
+    try {
+      const threads = GmailApp.search(Constants.EMAIL.SEARCH_SENT, 0, limit);
+      const emails: { body: string }[] = [];
+      
+      for (const thread of threads) {
+        const messages = thread.getMessages();
+        for (const message of messages) {
+          // Only include messages sent by the user
+          if (message.getFrom().includes(Session.getActiveUser().getEmail())) {
+            emails.push({
+              body: message.getPlainBody()
+            });
+            if (emails.length >= limit) {
+              return emails;
+            }
+          }
+        }
+      }
+      
+      return emails;
+    } catch (error) {
+      AppLogger.error('Failed to get recent sent emails', error);
+      return [];
     }
   }
 }

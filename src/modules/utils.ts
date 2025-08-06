@@ -10,8 +10,10 @@ namespace Utils {
    * Truncate text to specified length
    */
   export function truncate(text: string, maxLength: number): string {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength - Constants.STYLE.MIN_SENTENCE_LENGTH) + '...';
+    if (text.length <= maxLength) {
+      return text;
+    }
+    return `${text.substring(0, maxLength - Constants.STYLE.MIN_SENTENCE_LENGTH)  }...`;
   }
   
   /**
@@ -35,8 +37,8 @@ namespace Utils {
   export function parseJsonSafe<T>(json: string, defaultValue: T): T {
     try {
       return JSON.parse(json) as T;
-    } catch (e) {
-      AppLogger.warn('Failed to parse JSON', e);
+    } catch (_e) {
+      AppLogger.warn('Failed to parse JSON', _e as Error);
       return defaultValue;
     }
   }
@@ -154,9 +156,23 @@ namespace Utils {
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
     
-    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    if (days > 0) {
+      return `${days} day${days > 1 ? 's' : ''} ago`;
+    }
+    if (hours > 0) {
+      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    }
+    if (minutes > 0) {
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    }
     return 'just now';
+  }
+
+  /**
+   * Extract domain from email address
+   */
+  export function extractDomain(email: string): string {
+    const parts = email.split('@');
+    return parts.length > 1 && parts[1] ? parts[1].toLowerCase() : '';
   }
 }

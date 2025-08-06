@@ -1,7 +1,12 @@
 import '../src/modules/types';
+import '../src/modules/constants';
 import '../src/modules/config';
 import '../src/modules/logger';
 import '../src/modules/utils';
+import '../src/modules/json-validator';
+import '../src/modules/google-docs-prompts';
+import '../src/modules/prompts';
+import '../src/modules/gmail';
 import '../src/modules/ai';
 
 declare const global: any;

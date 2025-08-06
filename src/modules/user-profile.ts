@@ -42,8 +42,8 @@ namespace UserProfile {
     if (cached) {
       try {
         return JSON.parse(cached);
-      } catch (e) {
-        AppLogger.warn('Failed to parse cached profile', e);
+      } catch (_e) {
+        AppLogger.warn('Failed to parse cached profile', _e);
       }
     }
     
@@ -133,8 +133,8 @@ namespace UserProfile {
       
       updateProfile(merged);
       return merged;
-    } catch (e) {
-      AppLogger.error('Failed to update from analysis', e);
+    } catch (_e) {
+      AppLogger.error('Failed to update from analysis', _e);
       return getUserProfile();
     }
   }
@@ -155,8 +155,8 @@ namespace UserProfile {
     try {
       updateProfile(improvedData);
       return improvedData;
-    } catch (e) {
-      AppLogger.error('Failed to apply improvements', e);
+    } catch (_e) {
+      AppLogger.error('Failed to apply improvements', _e);
       return getUserProfile();
     }
   }
@@ -180,7 +180,9 @@ ${Utils.cleanEmailBody(msg.getPlainBody())}`;
    * Helper to merge pattern objects
    */
   function mergePatterns(current: any, learned: any): any {
-    if (!learned) return current;
+    if (!learned) {
+      return current;
+    }
     
     return {
       greetings: {
@@ -200,7 +202,9 @@ ${Utils.cleanEmailBody(msg.getPlainBody())}`;
    * Helper to merge vocabulary objects
    */
   function mergeVocabulary(current: any, learned: any): any {
-    if (!learned) return current;
+    if (!learned) {
+      return current;
+    }
     
     return {
       common: mergeArrays(current.common, learned.common),
@@ -213,7 +217,9 @@ ${Utils.cleanEmailBody(msg.getPlainBody())}`;
    * Merge arrays keeping unique values
    */
   function mergeArrays(current: string[], learned?: string[]): string[] {
-    if (!learned) return current;
+    if (!learned) {
+      return current;
+    }
     return [...new Set([...learned, ...current])].slice(0, 10);
   }
 
@@ -226,12 +232,15 @@ ${Utils.cleanEmailBody(msg.getPlainBody())}`;
       const userEmail = Session.getActiveUser().getEmail();
       // For now, extract from email
       const namePart = userEmail.split('@')[0];
-      if (!namePart) return undefined;
+      if (!namePart) {
+        return undefined;
+      }
       
       return namePart.split('.').map(part => 
         part.charAt(0).toUpperCase() + part.slice(1)
       ).join(' ');
-    } catch (e) {
+    } catch {
+      // Error parsing email - return undefined
       return undefined;
     }
   }

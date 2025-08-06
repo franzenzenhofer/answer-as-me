@@ -20,6 +20,7 @@ namespace AppLogger {
    */
   export function debug(message: string, data?: any): void {
     if (currentLogLevel <= LogLevel.DEBUG) {
+      // eslint-disable-next-line no-console
       console.log(`${Constants.LOG.PREFIX_DEBUG} ${message}`, data || '');
     }
   }
@@ -29,6 +30,7 @@ namespace AppLogger {
    */
   export function info(message: string, data?: any): void {
     if (currentLogLevel <= LogLevel.INFO) {
+      // eslint-disable-next-line no-console
       console.info(`${Constants.LOG.PREFIX_INFO} ${message}`, data || '');
     }
   }
@@ -80,18 +82,18 @@ namespace AppLogger {
     const safeData = data ? redact(JSON.stringify(data)) : undefined;
     
     switch (level) {
-      case LogLevel.DEBUG:
-        debug(safeMessage, safeData);
-        break;
-      case LogLevel.INFO:
-        info(safeMessage, safeData);
-        break;
-      case LogLevel.WARN:
-        warn(safeMessage, safeData);
-        break;
-      case LogLevel.ERROR:
-        error(safeMessage, safeData);
-        break;
+    case LogLevel.DEBUG:
+      debug(safeMessage, safeData);
+      break;
+    case LogLevel.INFO:
+      info(safeMessage, safeData);
+      break;
+    case LogLevel.WARN:
+      warn(safeMessage, safeData);
+      break;
+    case LogLevel.ERROR:
+      error(safeMessage, safeData);
+      break;
     }
   }
 }

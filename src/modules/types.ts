@@ -44,6 +44,11 @@ namespace Types {
     date: GoogleAppsScript.Base.Date;
     isReply: boolean;
     previousMessages?: EmailMessage[];
+    senderEmail?: string;
+    senderName?: string;
+    recipients?: string[];
+    threadHistory?: EmailMessage[];
+    originalMessage?: EmailMessage;
   }
 
   /**
@@ -66,7 +71,45 @@ namespace Types {
     vocabulary: string[];
     formalityLevel: number;
     averageSentenceLength: number;
+    emailLength: string;
     punctuationStyle: string;
+  }
+
+  /**
+   * User profile for AI assistant
+   */
+  export interface UserProfile {
+    email: string;
+    name?: string;
+    identity?: {
+      role: string;
+      expertise: string[];
+      communicationStyle: string;
+    };
+    personality?: {
+      formality: number;
+      directness: number;
+      warmth: number;
+      detailLevel: number;
+    };
+    patterns?: {
+      greetings: {
+        formal: string[];
+        casual: string[];
+        client: string[];
+      };
+      closings: {
+        formal: string[];
+        casual: string[];
+        client: string[];
+      };
+    };
+    vocabulary?: {
+      common: string[];
+      avoided: string[];
+      professional: string[];
+    };
+    rules?: string[];
   }
 
   /**

@@ -36,7 +36,7 @@ namespace UI {
     const apiKeyInput = CardService.newTextInput()
       .setFieldName(Constants.UI.FIELD_API_KEY)
       .setTitle('Gemini API Key')
-      .setValue(settings.apiKey ? '••••••••' + settings.apiKey.slice(-4) : '')
+      .setValue(settings.apiKey ? `••••••••${  settings.apiKey.slice(-4)}` : '')
       .setHint('Your Gemini API key');
     
     section.addWidget(apiKeyInput);
@@ -115,7 +115,7 @@ namespace UI {
     
     // Response preview
     const previewText = CardService.newTextParagraph()
-      .setText('<b>Preview:</b><br>' + Utils.truncate(Utils.escapeHtml(responseText), Constants.UI.MAX_HINT_LENGTH * 2));
+      .setText(`<b>Preview:</b><br>${  Utils.truncate(Utils.escapeHtml(responseText), Constants.UI.MAX_HINT_LENGTH * 2)}`);
     section.addWidget(previewText);
     
     // Open draft button
@@ -214,6 +214,212 @@ namespace UI {
     
     section.addWidget(helpText);
     card.addSection(section);
+    
+    return card.build();
+  }
+
+  /**
+   * Build prompt management card
+   */
+  export function buildPromptManagementCard(): GoogleAppsScript.Card_Service.Card {
+    const card = CardService.newCardBuilder();
+    card.setHeader(
+      CardService.newCardHeader()
+        .setTitle('Prompt Management')
+        .setSubtitle('Manage your Google Docs prompts')
+        .setImageStyle(CardService.ImageStyle.SQUARE)
+        .setImageUrl(Constants.UI.ICON_MAIN)
+    );
+
+    // Check for automatic updates
+    GoogleDocsPrompts.checkForAutomaticUpdates();
+    
+    // Get all prompt statuses
+    const statuses = GoogleDocsPrompts.getAllPromptStatuses();
+    
+    // Create status section
+    const statusSection = CardService.newCardSection()
+      .setHeader('<b>Prompt Documents Status</b>');
+    
+    statuses.forEach(status => {
+      const docName = Constants.PROMPTS.DOC_NAMES[status.type] || status.type;
+      const statusText = status.hasDoc 
+        ? `✅ ${docName} (v${status.version})${status.hasUpdate ? ' 🔄' : ''}`
+        : `❌ ${docName} - Not created`;
+      
+      const widget = CardService.newDecoratedText()
+        .setText(statusText)
+        .setBottomLabel(status.hasDoc ? 'Click to edit' : 'Click to create');
+      
+      if (status.url) {
+        widget.setOpenLink(
+          CardService.newOpenLink()
+            .setUrl(status.url)
+            .setOpenAs(CardService.OpenAs.FULL_SIZE)
+        );
+      } else {
+        widget.setOnClickAction(
+          CardService.newAction()
+            .setFunctionName('handleCreatePromptDoc')
+            .setParameters({ promptType: status.type })
+        );
+      }
+      
+      statusSection.addWidget(widget);
+    });
+    
+    card.addSection(statusSection);
+    
+    // Actions section
+    const actionsSection = CardService.newCardSection()
+      .setHeader('<b>Actions</b>');
+    
+    // Update all button
+    const updateButton = CardService.newTextButton()
+      .setText('Update All Prompts')
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('handleUpdateAllPrompts')
+      );
+    
+    actionsSection.addWidget(updateButton);
+    
+    // Info text
+    const infoText = CardService.newTextParagraph()
+      .setText(
+        '<br><b>ℹ️ About Prompt Documents:</b><br>' +
+        '• Each prompt type has its own Google Doc<br>' +
+        '• Edit prompts directly in Google Docs<br>' +
+        '• Changes are cached for 1 hour<br>' +
+        '• Version tracking shows when updates are available<br>' +
+        '• Prompts persist even after add-on reset'
+      );
+    
+    actionsSection.addWidget(infoText);
+    card.addSection(actionsSection);
+    
+    return card.build();
+  }
+
+  /**
+   * Show prompt update notification
+   */
+  export function showPromptUpdateNotification(
+    updated: string[], 
+    failed: string[]
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    let message = '';
+    
+    if (updated.length > 0) {
+      const updatedNames = updated.map(type => 
+        Constants.PROMPTS.DOC_NAMES[type] || type
+      ).join(', ');
+      message += `✅ Updated: ${updatedNames}`;
+    }
+    
+    if (failed.length > 0) {
+      const failedNames = failed.map(type => 
+        Constants.PROMPTS.DOC_NAMES[type] || type
+      ).join(', ');
+      message += `\n❌ Failed: ${failedNames}`;
+    }
+    
+    return CardService.newActionResponseBuilder()
+      .setNotification(
+        CardService.newNotification()
+          .setText(message || 'No updates needed')
+      )
+      .build();
+  }
+
+  /**
+   * Build settings card with prompt management
+   */
+  export function buildSettingsCard(settings: Types.Config): GoogleAppsScript.Card_Service.Card {
+    const card = CardService.newCardBuilder();
+    card.setHeader(
+      CardService.newCardHeader()
+        .setTitle('Settings')
+        .setSubtitle('Configure your preferences')
+        .setImageStyle(CardService.ImageStyle.SQUARE)
+        .setImageUrl(Constants.UI.ICON_MAIN)
+    );
+    
+    // API Key section
+    const apiSection = CardService.newCardSection()
+      .setHeader('<b>API Configuration</b>');
+    
+    const apiKeyInput = CardService.newTextInput()
+      .setFieldName('apiKey')
+      .setTitle('Gemini API Key')
+      .setValue(settings.apiKey ? `••••••${  settings.apiKey.slice(-4)}` : '')
+      .setHint('Your Google Gemini API key');
+    
+    apiSection.addWidget(apiKeyInput);
+    
+    // Response settings section
+    const responseSection = CardService.newCardSection()
+      .setHeader('<b>Response Settings</b>');
+    
+    const formalityDropdown = CardService.newSelectionInput()
+      .setFieldName('formalityLevel')
+      .setTitle('Default Formality')
+      .setType(CardService.SelectionInputType.DROPDOWN);
+    
+    Constants.STYLE.FORMALITY_LABELS.forEach((label, index) => {
+      formalityDropdown.addItem(label, (index + 1).toString(), 
+        settings.formalityLevel === index + 1);
+    });
+    
+    responseSection.addWidget(formalityDropdown);
+    
+    // Custom instructions
+    const instructionsInput = CardService.newTextInput()
+      .setFieldName('customInstructions')
+      .setTitle('Custom Instructions')
+      .setValue(settings.customInstructions || '')
+      .setHint('Special instructions for all responses')
+      .setMultiline(true);
+    
+    responseSection.addWidget(instructionsInput);
+    
+    // Signature
+    const signatureInput = CardService.newTextInput()
+      .setFieldName('signature')
+      .setTitle('Email Signature')
+      .setValue(settings.signature || '')
+      .setHint('Your email signature')
+      .setMultiline(true);
+    
+    responseSection.addWidget(signatureInput);
+    
+    card.addSection(apiSection);
+    card.addSection(responseSection);
+    
+    // Save button
+    const saveButton = CardService.newTextButton()
+      .setText('Save Settings')
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('saveSettings')
+      );
+    
+    const buttonSection = CardService.newCardSection();
+    buttonSection.addWidget(saveButton);
+    
+    // Prompt management link
+    const promptLink = CardService.newTextButton()
+      .setText('Manage Prompts')
+      .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('showPromptManagement')
+      );
+    
+    buttonSection.addWidget(promptLink);
+    card.addSection(buttonSection);
     
     return card.build();
   }

@@ -14,7 +14,9 @@ namespace StyleAnalyzer {
       const body = Utils.cleanEmailBody(email.getPlainBody());
       
       // Skip very short emails
-      if (body.length < 50) return;
+      if (body.length < 50) {
+        return;
+      }
       
       
       // Extract greeting
@@ -50,6 +52,7 @@ namespace StyleAnalyzer {
       averageSentenceLength: sentences.length > 0 
         ? Math.round(sentences.join(' ').length / sentences.length)
         : 15,
+      emailLength: 'medium', // Default to medium
       punctuationStyle: detectPunctuationStyle(sentences)
     };
   }
@@ -106,8 +109,12 @@ namespace StyleAnalyzer {
     );
     
     // Calculate formality score (1-5)
-    if (informalCount > formalCount * 2) return 2;
-    if (formalCount > informalCount * 2) return 4;
+    if (informalCount > formalCount * 2) {
+      return 2;
+    }
+    if (formalCount > informalCount * 2) {
+      return 4;
+    }
     return 3;
   }
   
@@ -121,9 +128,15 @@ namespace StyleAnalyzer {
     const hasEllipsis = (text.match(/\.\.\./g) || []).length > 0;
     const hasDashes = (text.match(/--|-/g) || []).length > sentences.length * 0.1;
     
-    if (hasExclamations) return 'enthusiastic';
-    if (hasEllipsis) return 'casual';
-    if (hasDashes) return 'detailed';
+    if (hasExclamations) {
+      return 'enthusiastic';
+    }
+    if (hasEllipsis) {
+      return 'casual';
+    }
+    if (hasDashes) {
+      return 'detailed';
+    }
     return 'standard';
   }
 }

@@ -36,9 +36,19 @@ namespace ActionHandlers {
       
       // Get writing style
       const style = AI.getWritingStyle();
+      if (!style) {
+        throw new ErrorHandling.AppError(
+          'Unable to analyze writing style',
+          'STYLE_ERROR',
+          'Please ensure you have sent emails from this account'
+        );
+      }
+      
+      // Get user profile
+      const userProfile = UserProfile.getUserProfile();
       
       // Generate response
-      const aiResponse = AI.generateEmailResponse(context, style, settings);
+      const aiResponse = AI.generateEmailResponse(context, style, userProfile, settings.apiKey);
       
       if (!aiResponse.success || !aiResponse.response) {
         throw new ErrorHandling.AppError(
@@ -292,14 +302,29 @@ namespace ActionHandlers {
         try {
           const improved = JSON.parse(improveResponse.response);
           UserProfile.applyImprovements(improved);
-        } catch (e) {
-          AppLogger.error('Failed to parse profile improvements', e);
+        } catch (_e) {
+          AppLogger.error('Failed to parse profile improvements', _e);
         }
       }
       
       // Also update writing style
+      const currentStyle = AI.getWritingStyle();
+      if (!currentStyle) {
+        AppLogger.warn('No current writing style found, skipping style improvement');
+        return CardService.newActionResponseBuilder()
+          .setNotification(
+            CardService.newNotification()
+              .setText('Successfully learned from this thread!')
+          )
+          .setNavigation(
+            CardService.newNavigation()
+              .updateCard(EntryPoints.buildMessageCard(e))
+          )
+          .build();
+      }
+      
       const improvedStyle = StyleImprover.improveStyleFromThread(
-        AI.getWritingStyle(),
+        currentStyle,
         thread
       );
       
@@ -325,6 +350,84 @@ namespace ActionHandlers {
         .setNotification(
           CardService.newNotification()
             .setText('Failed to learn from thread')
+        )
+        .build();
+    }
+  }
+
+  /**
+   * Show prompt management
+   */
+  export function showPromptManagement(_e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      return CardService.newActionResponseBuilder()
+        .setNavigation(
+          CardService.newNavigation()
+            .pushCard(UI.buildPromptManagementCard())
+        )
+        .build();
+    } catch (error) {
+      AppLogger.error('Failed to show prompt management', error);
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText('Failed to open prompt management')
+        )
+        .build();
+    }
+  }
+
+  /**
+   * Handle create prompt document
+   */
+  export function handleCreatePromptDoc(e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      const promptType = e.parameters?.promptType;
+      if (!promptType) {
+        throw new Error('No prompt type specified');
+      }
+
+      // Create the document
+      const docId = GoogleDocsPrompts.getOrCreatePromptDocument(promptType);
+      const doc = DocumentApp.openById(docId);
+      const url = doc.getUrl();
+
+      // Open the document
+      return CardService.newActionResponseBuilder()
+        .setOpenLink(
+          CardService.newOpenLink()
+            .setUrl(url)
+            .setOpenAs(CardService.OpenAs.FULL_SIZE)
+            .setOnClose(CardService.OnClose.RELOAD_ADD_ON)
+        )
+        .build();
+    } catch (error) {
+      AppLogger.error('Failed to create prompt document', error);
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText('Failed to create prompt document')
+        )
+        .build();
+    }
+  }
+
+  /**
+   * Handle update all prompts
+   */
+  export function handleUpdateAllPrompts(_e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      // Update all prompts
+      const result = GoogleDocsPrompts.updateAllPrompts();
+      
+      // Show notification with results
+      return UI.showPromptUpdateNotification(result.updated, result.failed);
+    } catch (error) {
+      AppLogger.error('Failed to update prompts', error);
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText('Failed to update prompts')
         )
         .build();
     }

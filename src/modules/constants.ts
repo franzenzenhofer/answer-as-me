@@ -182,7 +182,13 @@ namespace Constants {
     USER_PROFILE: 'AAM_USER_PROFILE',
     
     // Cache duration
-    STYLE_CACHE_DAYS: 7
+    STYLE_CACHE_DAYS: 7,
+    
+    // Prompts system keys
+    PROMPTS_DOC_ID: 'AAM_PROMPTS_DOC_ID',
+    PROMPTS_CACHE: 'AAM_PROMPTS_CACHE',
+    PROMPTS_VERSION: 'AAM_PROMPTS_VERSION',
+    PROMPTS_LAST_CHECK: 'AAM_PROMPTS_LAST_CHECK'
   };
 
   // ============================================
@@ -242,6 +248,7 @@ namespace Constants {
     AUTH_ERROR: 'AUTH_ERROR',
     VALIDATION_ERROR: 'VALIDATION_ERROR',
     INTERNAL_ERROR: 'INTERNAL_ERROR',
+    PROMPT_DOC_CREATE_FAILED: 'PROMPT_DOC_CREATE_FAILED',
     
     // Error messages
     MSG_API_KEY_REQUIRED: 'API key not configured',
@@ -282,36 +289,6 @@ namespace Constants {
     REDACTED_NAME: '[NAME]'
   };
 
-  // ============================================
-  // PROMPTS
-  // ============================================
-  export const PROMPTS = {
-    // Style analysis prompt template
-    STYLE_ANALYSIS: `Analyze the writing style of these emails and extract:
-- Common greetings used
-- Common closing phrases
-- Sentence structure patterns
-- Vocabulary preferences
-- Formality level (1-5)
-- Average sentence length
-- Punctuation style
-
-Return as JSON with these exact fields: greetings, closings, sentencePatterns, vocabulary, formalityLevel, averageSentenceLength, punctuationStyle`,
-
-    // Response generation prompt template
-    RESPONSE_GENERATION: `Generate an email response that:
-1. Matches the provided writing style
-2. Appropriately addresses the email content
-3. Maintains the specified formality level
-4. Uses appropriate length based on preference
-5. Includes relevant context from the thread
-
-Style profile: {style}
-Email context: {context}
-Custom instructions: {instructions}
-
-Return only the email body text, no subject or metadata.`
-  };
 
   // ============================================
   // TIMING AND PERFORMANCE
@@ -330,7 +307,9 @@ Return only the email body text, no subject or metadata.`
     
     // Cache durations
     STYLE_CACHE_HOURS: 168, // 7 days
-    SETTINGS_CACHE_MINUTES: 60
+    SETTINGS_CACHE_MINUTES: 60,
+    PROMPT_CACHE_TTL: 3600000, // 1 hour in milliseconds
+    PROMPT_UPDATE_CHECK_INTERVAL: 300000 // 5 minutes in milliseconds
   };
 
   // ============================================
@@ -399,6 +378,51 @@ Return only the email body text, no subject or metadata.`
     // Build info placeholders
     VERSION_PLACEHOLDER: '{{VERSION}}',
     DEPLOY_TIME_PLACEHOLDER: '{{DEPLOY_TIME}}'
+  };
+
+  // ============================================
+  // PROMPTS SYSTEM
+  // ============================================
+  export const PROMPTS = {
+    // Document settings
+    DOC_TITLE_PREFIX: 'Answer As Me - Prompt:',
+    DEFAULT_VERSION: '1.0.0',
+    
+    // Prompt types (each gets its own doc)
+    TYPES: {
+      ASSISTANT_IDENTITY: 'ASSISTANT_IDENTITY',
+      STYLE_ANALYSIS: 'STYLE_ANALYSIS', 
+      RESPONSE_GENERATION: 'RESPONSE_GENERATION',
+      STYLE_IMPROVEMENT: 'STYLE_IMPROVEMENT',
+      THREAD_LEARNING: 'THREAD_LEARNING',
+      ERROR_CONTEXT: 'ERROR_CONTEXT'
+    },
+    
+    // Document names  
+    DOC_NAMES: {
+      ASSISTANT_IDENTITY: 'Assistant Identity',
+      STYLE_ANALYSIS: 'Style Analysis',
+      RESPONSE_GENERATION: 'Response Generation',
+      STYLE_IMPROVEMENT: 'Style Improvement',
+      THREAD_LEARNING: 'Thread Learning',
+      ERROR_CONTEXT: 'Error Context'
+    } as { [key: string]: string },
+    
+    // Cache settings
+    CACHE_PREFIX: 'AAM_PROMPT_CACHE_',
+    DOC_ID_PREFIX: 'AAM_PROMPT_DOC_',
+    VERSION_PREFIX: 'AAM_PROMPT_VERSION_',
+    
+    // Update settings
+    AUTO_CHECK_ENABLED: true,
+    VERSION_CHECK_HEADER: '## Version:',
+    
+    // Placeholder patterns
+    VARIABLE_PATTERN: /\{\{(\w+)\}\}/g,
+    
+    // Fallback behavior
+    USE_MINIMAL_FALLBACK: true,
+    FALLBACK_WARNING: 'Using fallback prompt - please configure Google Docs'
   };
 
   // ============================================

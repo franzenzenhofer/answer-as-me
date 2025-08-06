@@ -14,6 +14,9 @@ AI-powered Gmail add-on that generates personalized email responses matching you
 - 📧 **Draft Creation**: Automatically creates draft replies you can review before sending
 - 🎯 **Simple Interface**: Clean, minimal UI with just the essentials
 - 🔒 **Secure**: API keys stored securely in user properties
+- 👤 **AI Assistant Identity**: AI knows who you are and writes AS you, not about you
+- 📚 **Learn from Thread**: Incrementally improve from specific conversations
+- 📝 **Google Docs Prompts**: Edit all AI prompts directly in Google Docs (no coding!)
 
 ## Quick Start
 

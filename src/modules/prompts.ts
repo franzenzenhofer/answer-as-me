@@ -1,184 +1,180 @@
+/**
+ * Prompts Module - DRY Implementation
+ * 
+ * ALL PROMPTS ARE FETCHED FROM GOOGLE DOCS
+ * This module is just a thin wrapper around GoogleDocsPrompts
+ * NO HARDCODED PROMPTS - Everything comes from Google Docs
+ */
+
 namespace Prompts {
   /**
-   * Core identity prompt that establishes the AI as the user's assistant
+   * Get assistant identity prompt
+   * Fetched from ASSISTANT_IDENTITY Google Doc
    */
   export function getAssistantIdentityPrompt(userEmail: string, userName?: string): string {
-    return `You are the personal email assistant for ${userName || userEmail}.
-
-YOUR IDENTITY:
-- You work exclusively for ${userName || 'your boss'} (${userEmail})
-- You know their communication style intimately from analyzing their emails
-- You draft responses as if you were them, not as an AI
-- You understand their role, relationships, and communication patterns
-- You maintain their professional reputation in every response
-
-YOUR RESPONSIBILITIES:
-- Draft emails that sound exactly like ${userName || 'your boss'} would write them
-- Maintain consistent tone, vocabulary, and style
-- Protect their time by handling routine responses
-- Never reveal that you're an AI assistant unless explicitly instructed
-- Always consider the context and relationship with each recipient`;
+    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.ASSISTANT_IDENTITY, {
+      userEmail,
+      userName: userName || userEmail
+    });
   }
 
   /**
-   * Style analysis prompt that focuses on understanding WHO the user is
+   * Get style analysis prompt
+   * Fetched from STYLE_ANALYSIS Google Doc
    */
   export function getStyleAnalysisPrompt(userEmail: string): string {
-    return `Analyze these emails to understand WHO your boss (${userEmail}) is and HOW they communicate.
-
-EXTRACT THEIR IDENTITY:
-1. Professional Role & Expertise
-   - What position/role do they appear to have?
-   - What topics do they discuss most?
-   - What's their domain expertise?
-
-2. Communication Personality
-   - Are they formal or casual?
-   - Direct or diplomatic?
-   - Brief or detailed?
-   - Warm or professional?
-
-3. Relationship Patterns
-   - How do they address different types of people?
-   - How do they adjust tone for clients vs colleagues?
-   - What's their hierarchy awareness?
-
-4. Signature Elements
-   - Common greetings by recipient type
-   - Preferred sign-offs
-   - Unique phrases or expressions
-   - Email structure patterns
-
-5. Values & Priorities
-   - What matters to them in communication?
-   - How do they show respect or appreciation?
-   - What triggers formal vs casual tone?
-
-RETURN a comprehensive profile as JSON with these exact fields:
-{
-  "identity": {
-    "role": "their apparent position/title",
-    "expertise": ["domain1", "domain2"],
-    "communicationStyle": "brief description"
-  },
-  "personality": {
-    "formality": 1-5,
-    "directness": 1-5,
-    "warmth": 1-5,
-    "detailLevel": 1-5
-  },
-  "patterns": {
-    "greetings": {
-      "formal": ["greeting1", "greeting2"],
-      "casual": ["greeting1", "greeting2"],
-      "client": ["greeting1", "greeting2"]
-    },
-    "closings": {
-      "formal": ["closing1", "closing2"],
-      "casual": ["closing1", "closing2"],
-      "client": ["closing1", "closing2"]
-    }
-  },
-  "vocabulary": {
-    "common": ["word1", "word2"],
-    "avoided": ["word1", "word2"],
-    "professional": ["term1", "term2"]
-  },
-  "rules": [
-    "Always uses first names with colleagues",
-    "More formal with external clients",
-    "Brief responses for routine matters"
-  ]
-}`;
+    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.STYLE_ANALYSIS, {
+      userEmail
+    });
   }
 
   /**
-   * Response generation prompt that emphasizes assistant role
+   * Get response generation prompt
+   * Fetched from RESPONSE_GENERATION Google Doc
    */
   export function getResponseGenerationPrompt(
     context: Types.EmailContext,
-    _style: Types.WritingStyle,
-    userProfile: any,
-    customInstructions?: string
+    style: Types.WritingStyle,
+    userProfile: Types.UserProfile,
+    instructions?: string
   ): string {
-    const recipientName = Utils.extractSenderName(context.from);
+    // Build recipient info
+    const recipientInfo = buildRecipientInfo(context);
     
-    return `You are drafting an email response AS your boss (${userProfile.email}).
-
-CONTEXT:
-- Recipient: ${recipientName} (${context.from})
-- Subject: ${context.subject}
-- Thread length: ${context.previousMessages?.length || 0} messages
-- Relationship: ${inferRelationship(context, userProfile)}
-
-YOUR BOSS'S PROFILE:
-- Role: ${userProfile.identity?.role || 'Professional'}
-- Style: ${userProfile.identity?.communicationStyle || 'Professional and clear'}
-- Formality with this recipient: ${inferFormalityLevel(context, userProfile)}
-
-EMAIL TO RESPOND TO:
-${context.body}
-
-${context.previousMessages?.length ? `
-THREAD CONTEXT:
-${context.previousMessages.slice(-3).map(m => 
-  `From: ${m.from}\n${Utils.truncate(m.body, 200)}`
-).join('\n---\n')}
-` : ''}
-
-WRITING RULES:
-1. Write AS your boss, not about them
-2. Match their exact style and vocabulary
-3. Use appropriate greeting for this recipient
-4. Maintain their typical response length
-5. Include their signature style
-${customInstructions ? `\nSPECIAL INSTRUCTIONS: ${customInstructions}` : ''}
-
-Generate a response that your boss would write themselves.
-Output ONLY the email body text, no subject or metadata.`;
+    // Build identity summary
+    const identity = buildIdentitySummary(userProfile);
+    
+    // Build style summary
+    const styleSummary = buildStyleSummary(style);
+    
+    // Build context summary
+    const contextSummary = buildContextSummary(context);
+    
+    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.RESPONSE_GENERATION, {
+      context: contextSummary,
+      identity,
+      style: styleSummary,
+      recipientInfo,
+      instructions: instructions || 'None',
+      userName: userProfile.name || userProfile.email
+    });
   }
 
   /**
-   * Style improvement prompt for learning from specific threads
+   * Get style improvement prompt
+   * Fetched from STYLE_IMPROVEMENT Google Doc
    */
   export function getStyleImprovementPrompt(
-    currentProfile: any,
+    currentProfile: Types.UserProfile,
     threadContent: string
   ): string {
-    return `You are refining your understanding of your boss based on this email thread.
+    const profileSummary = JSON.stringify(currentProfile, null, 2);
+    
+    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.STYLE_IMPROVEMENT, {
+      userEmail: currentProfile.email,
+      currentProfile: profileSummary,
+      threadContent
+    });
+  }
 
-CURRENT UNDERSTANDING:
-${JSON.stringify(currentProfile, null, 2)}
+  /**
+   * Get thread learning prompt
+   * Fetched from THREAD_LEARNING Google Doc
+   */
+  export function getThreadLearningPrompt(
+    userEmail: string,
+    threadMessages: string
+  ): string {
+    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.THREAD_LEARNING, {
+      userEmail,
+      threadMessages
+    });
+  }
 
-NEW EMAIL THREAD:
-${threadContent}
+  /**
+   * Get error context prompt
+   * Fetched from ERROR_CONTEXT Google Doc
+   */
+  export function getErrorContextPrompt(
+    errorType: string,
+    context: string
+  ): string {
+    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.ERROR_CONTEXT, {
+      errorType,
+      context
+    });
+  }
 
-ANALYSIS TASK:
-1. What new patterns do you observe in this thread?
-2. Are there new relationship dynamics to note?
-3. Any new vocabulary or phrases to remember?
-4. Changes in formality or tone for specific contexts?
-5. New rules or preferences displayed?
+  /**
+   * Get initial profile prompt
+   * This one is also fetched from Google Docs
+   */
+  export function getInitialProfilePrompt(userName: string, userEmail: string): string {
+    // This uses the ASSISTANT_IDENTITY doc with special instructions
+    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.ASSISTANT_IDENTITY, {
+      userName,
+      userEmail,
+      instructions: 'Create initial profile'
+    });
+  }
 
-UPDATE the profile with any new insights, keeping all existing knowledge and adding:
-- New greeting/closing variations
-- Refined relationship patterns  
-- Additional vocabulary
-- Contextual rules
+  // Helper functions to build prompt variables
+  
+  function buildRecipientInfo(context: Types.EmailContext): string {
+    const recipient = context.recipients?.[0] || context.to;
+    const domain = recipient.split('@')[1];
+    const senderDomain = (context.senderEmail || context.from).split('@')[1];
+    
+    let relationship = 'External contact';
+    if (domain === senderDomain) {
+      relationship = 'Colleague (same organization)';
+    } else if (context.threadHistory && context.threadHistory.length > 2) {
+      relationship = 'Ongoing conversation';
+    }
+    
+    return `Recipient: ${recipient}\nRelationship: ${relationship}`;
+  }
 
-Return the COMPLETE updated profile in the same JSON format.`;
+  function buildIdentitySummary(profile: Types.UserProfile): string {
+    if (!profile.identity) {
+      return `Email user: ${profile.email}`;
+    }
+    
+    return `Role: ${profile.identity.role}
+Expertise: ${profile.identity.expertise.join(', ')}
+Communication Style: ${profile.identity.communicationStyle}`;
+  }
+
+  function buildStyleSummary(style: Types.WritingStyle): string {
+    const formalityLabel = Constants.STYLE.FORMALITY_LABELS[style.formalityLevel - 1] || 'Neutral';
+    
+    return `Formality: ${formalityLabel}
+Common Greetings: ${style.greetings.slice(0, 3).join(', ')}
+Common Closings: ${style.closings.slice(0, 3).join(', ')}
+Avg Sentence Length: ${style.averageSentenceLength} words
+Email Length: ${style.emailLength}`;
+  }
+
+  function buildContextSummary(context: Types.EmailContext): string {
+    const lastMessage = context.originalMessage || { body: context.body };
+    const preview = lastMessage.body.substring(0, 500);
+    
+    return `Subject: ${context.subject}
+From: ${context.senderName || context.from} <${context.senderEmail || context.from}>
+Preview: ${preview}${lastMessage.body.length > 500 ? '...' : ''}`;
   }
 
   /**
    * Helper function to infer relationship type
+   * (Still used by other modules)
    */
-  function inferRelationship(context: Types.EmailContext, userProfile: any): string {
-    const senderEmail = context.from.toLowerCase();
-    const senderDomain = Utils.getEmailDomain(senderEmail);
-    const userDomain = Utils.getEmailDomain(userProfile.email);
+  export function inferRelationship(context: Types.EmailContext, userProfile: Types.UserProfile): string {
+    const senderEmail = (context.senderEmail || context.from).toLowerCase();
+    const senderDomain = Utils.extractDomain(senderEmail);
+    const userDomain = Utils.extractDomain(userProfile.email);
     
     // Check previous interactions
-    if (context.previousMessages && context.previousMessages.length > 5) {
+    if (context.threadHistory && context.threadHistory.length > 5) {
       return 'Frequent correspondent';
     }
     
@@ -188,9 +184,10 @@ Return the COMPLETE updated profile in the same JSON format.`;
     }
     
     // Check for client indicators
-    if (context.subject.toLowerCase().includes('proposal') || 
-        context.subject.toLowerCase().includes('contract') ||
-        context.subject.toLowerCase().includes('invoice')) {
+    const subject = context.subject.toLowerCase();
+    if (subject.includes('proposal') || 
+        subject.includes('contract') ||
+        subject.includes('invoice')) {
       return 'Client';
     }
     
@@ -199,45 +196,20 @@ Return the COMPLETE updated profile in the same JSON format.`;
 
   /**
    * Helper function to determine formality level
+   * (Still used by other modules)
    */
-  function inferFormalityLevel(context: Types.EmailContext, userProfile: any): string {
+  export function inferFormalityLevel(context: Types.EmailContext, userProfile: Types.UserProfile): string {
     const relationship = inferRelationship(context, userProfile);
     
     switch (relationship) {
-      case 'Colleague':
-        return 'Casual to Neutral';
-      case 'Client':
-        return 'Professional';
-      case 'Frequent correspondent':
-        return 'Established pattern';
-      default:
-        return 'Neutral to Formal';
+    case 'Colleague':
+      return 'Casual to Neutral';
+    case 'Client':
+      return 'Professional';
+    case 'Frequent correspondent':
+      return 'Established pattern';
+    default:
+      return 'Neutral to Formal';
     }
-  }
-
-  /**
-   * Prompt for initial profile creation
-   */
-  export function getInitialProfilePrompt(userName: string, userEmail: string): string {
-    return `Create an initial assistant profile for serving ${userName} (${userEmail}).
-
-Since we haven't analyzed their emails yet, establish:
-
-1. DEFAULT ASSISTANT PERSONA:
-   - "I am the email assistant for ${userName}"
-   - Professional, efficient, and discrete
-   - Adapts to their style once learned
-
-2. INITIAL ASSUMPTIONS:
-   - Professional communication style
-   - Clear and concise responses
-   - Appropriate formality by context
-
-3. LEARNING READINESS:
-   - Ready to observe and learn their patterns
-   - Will refine understanding with each email
-   - Maintains consistency while learning
-
-Return a basic profile structure that can be enhanced as we learn.`;
   }
 }

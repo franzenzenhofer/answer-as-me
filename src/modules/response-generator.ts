@@ -59,7 +59,7 @@ Content: ${context.body}
 
     // Add thread context if available
     if (context.isReply && context.previousMessages && context.previousMessages.length > 0) {
-      prompt += `Previous messages in thread:\n`;
+      prompt += 'Previous messages in thread:\n';
       context.previousMessages.slice(-3).forEach(msg => {
         prompt += `---\n${msg.from} (${Utils.formatDate(msg.date)}): ${Utils.truncate(msg.body, 200)}\n`;
       });
@@ -79,7 +79,7 @@ Content: ${context.body}
       prompt += `\nAdditional instructions: ${settings.customInstructions}\n`;
     }
 
-    prompt += `\nGenerate only the email body text, no subject or metadata:`;
+    prompt += '\nGenerate only the email body text, no subject or metadata:';
     
     return prompt;
   }
@@ -89,14 +89,14 @@ Content: ${context.body}
    */
   function getLengthGuide(length: Types.ResponseLength): string {
     switch (length) {
-      case Types.ResponseLength.SHORT:
-        return 'brief (1-3 sentences)';
-      case Types.ResponseLength.MEDIUM:
-        return 'moderate (3-5 sentences)';
-      case Types.ResponseLength.LONG:
-        return 'detailed (1-2 paragraphs)';
-      default:
-        return 'moderate';
+    case Types.ResponseLength.SHORT:
+      return 'brief (1-3 sentences)';
+    case Types.ResponseLength.MEDIUM:
+      return 'moderate (3-5 sentences)';
+    case Types.ResponseLength.LONG:
+      return 'detailed (1-2 paragraphs)';
+    default:
+      return 'moderate';
     }
   }
   
@@ -119,10 +119,10 @@ Content: ${context.body}
       );
       
       if (!hasClosing) {
-        response += '\n\n' + style.closings[0] || 'Best regards';
+        response += `\n\n${  style.closings[0]}` || 'Best regards';
       }
       
-      response += '\n' + settings.signature;
+      response += `\n${  settings.signature}`;
     }
     
     return response;

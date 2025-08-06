@@ -1,0 +1,226 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  quality-checks:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: TypeScript check
+      run: npm run lint
+      
+    - name: ESLint check
+      run: npm run lint:eslint
+      
+    - name: Build project
+      run: npm run build
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: dist/
+        
+  tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: quality-checks
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run unit tests
+      run: npm test -- --ci --coverage
+      
+    - name: Run post-bundle tests
+      run: npm run test:postbundle
+      
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage/lcov.info
+        flags: unittests
+        
+    - name: Check coverage threshold
+      run: |
+        COVERAGE=$(npm run test:coverage -- --ci --silent | grep "All files" | awk '{print $10}' | sed 's/%//')
+        if [ -z "$COVERAGE" ] || [ $(echo "$COVERAGE < 80" | bc) -eq 1 ]; then
+          echo "Code coverage is below 80%"
+          exit 1
+        fi
+        echo "Code coverage: ${COVERAGE}%"
+        
+  validate-deployment:
+    name: Validate Deployment
+    runs-on: ubuntu-latest
+    needs: [quality-checks, tests]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build for production
+      run: npm run build
+      
+    - name: Validate bundle
+      run: |
+        # Check bundle exists
+        if [ ! -f "dist/Code.gs" ]; then
+          echo "Bundle file not found"
+          exit 1
+        fi
+        
+        # Check bundle size
+        BUNDLE_SIZE=$(stat -c%s dist/Code.gs)
+        BUNDLE_SIZE_KB=$((BUNDLE_SIZE / 1024))
+        echo "Bundle size: ${BUNDLE_SIZE_KB}KB"
+        
+        if [ $BUNDLE_SIZE_KB -lt 50 ]; then
+          echo "Bundle too small (${BUNDLE_SIZE_KB}KB < 50KB)"
+          exit 1
+        fi
+        
+        if [ $BUNDLE_SIZE_KB -gt 500 ]; then
+          echo "Bundle too large (${BUNDLE_SIZE_KB}KB > 500KB)"
+          exit 1
+        fi
+        
+    - name: Check for sensitive data
+      run: |
+        # Check for hardcoded secrets
+        if grep -E "(password|api[_-]?key|secret|token)\s*[:=]\s*['\"][^'\"]+['\"]" dist/Code.gs; then
+          echo "Found potential sensitive data in bundle"
+          exit 1
+        fi
+        
+    - name: Validate manifest
+      run: |
+        if [ ! -f "dist/appsscript.json" ]; then
+          echo "Manifest file not found"
+          exit 1
+        fi
+        
+        # Validate JSON
+        jq . dist/appsscript.json > /dev/null
+        
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: validate-deployment
+    if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'chore(deploy):')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Extract version
+      id: version
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        if [ -n "$LAST_TAG" ]; then
+          COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" | grep -v "^- Merge")
+        else
+          COMMITS=$(git log --pretty=format:"- %s" | head -20 | grep -v "^- Merge")
+        fi
+        
+        # Create changelog
+        echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+        echo "## What's Changed" >> $GITHUB_OUTPUT
+        echo "" >> $GITHUB_OUTPUT
+        echo "$COMMITS" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Release v${{ steps.version.outputs.version }}
+        body: |
+          # Answer As Me v${{ steps.version.outputs.version }}
+          
+          ${{ steps.changelog.outputs.CHANGELOG }}
+          
+          ## Installation
+          
+          1. Open the [Apps Script project](https://script.google.com/d/${{ secrets.SCRIPT_ID }}/edit)
+          2. Deploy > Test deployments > Install
+          3. Open Gmail and use the add-on
+          
+          ## Features
+          
+          - 🗄️ Google Docs editable prompts
+          - 🤖 Gemini 2.0 Flash with strict JSON mode
+          - 🔍 Google Search grounding
+          - 📦 Single file deployment
+          
+        files: |
+          dist/Code.gs
+          dist/appsscript.json
+          
+  notify-deployment:
+    name: Notify Deployment
+    runs-on: ubuntu-latest
+    needs: create-release
+    if: always()
+    
+    steps:
+    - name: Send notification
+      run: |
+        if [ "${{ needs.create-release.result }}" == "success" ]; then
+          echo "✅ Deployment successful!"
+        else
+          echo "❌ Deployment failed!"
+        fi

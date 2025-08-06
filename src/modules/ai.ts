@@ -1,8 +1,39 @@
 namespace AI {
   /**
-   * Call Gemini API
+   * Response schema types for strict JSON mode
    */
-  export function callGeminiAPI(prompt: string, apiKey: string): Types.AIResponse {
+  export interface ResponseSchema {
+    type: string;
+    properties?: { [key: string]: any };
+    required?: string[];
+    items?: any;
+    enum?: string[];
+  }
+
+  /**
+   * Tool configuration for Gemini API
+   */
+  export interface GeminiTool {
+    google_search?: {};
+    code_execution?: {};
+  }
+
+  /**
+   * Call Gemini API with enhanced features
+   * - Strict JSON mode
+   * - Google Search grounding
+   * - Code execution
+   */
+  export function callGeminiAPI(
+    prompt: string, 
+    apiKey: string,
+    options?: {
+      jsonMode?: boolean;
+      responseSchema?: ResponseSchema;
+      enableGrounding?: boolean;
+      enableCodeExecution?: boolean;
+    }
+  ): Types.AIResponse {
     if (!apiKey) {
       return {
         success: false,
@@ -11,21 +42,53 @@ namespace AI {
     }
     
     try {
-      const payload = {
+      // Build generation config
+      const generationConfig: any = {
+        temperature: Config.API_TEMPERATURE,
+        maxOutputTokens: Config.API_MAX_TOKENS,
+        topK: Constants.API.TOP_K,
+        topP: Constants.API.TOP_P
+      };
+
+      // Enable strict JSON mode if requested
+      if (options?.jsonMode) {
+        generationConfig.response_mime_type = 'application/json';
+        
+        // Add response schema if provided
+        if (options.responseSchema) {
+          generationConfig.response_schema = options.responseSchema;
+        }
+      }
+
+      // Build tools array
+      const tools: GeminiTool[] = [];
+      
+      // Add Google Search grounding if enabled
+      if (options?.enableGrounding) {
+        tools.push({ google_search: {} });
+      }
+      
+      // Add code execution if enabled
+      if (options?.enableCodeExecution) {
+        tools.push({ code_execution: {} });
+      }
+
+      // Build payload
+      const payload: any = {
         contents: [{
           parts: [{
             text: prompt
           }]
         }],
-        generationConfig: {
-          temperature: Config.API_TEMPERATURE,
-          maxOutputTokens: Config.API_MAX_TOKENS,
-          topK: Constants.API.TOP_K,
-          topP: Constants.API.TOP_P
-        }
+        generationConfig
       };
+
+      // Add tools if any are enabled
+      if (tools.length > 0) {
+        payload.tools = tools;
+      }
       
-      const options: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
+      const requestOptions: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
         method: Constants.API.HTTP_METHOD_POST as GoogleAppsScript.URL_Fetch.HttpMethod,
         contentType: Constants.API.CONTENT_TYPE_JSON,
         headers: {
@@ -35,8 +98,13 @@ namespace AI {
         muteHttpExceptions: true
       };
       
-      AppLogger.info('Calling Gemini API');
-      const response = UrlFetchApp.fetch(Config.GEMINI_API_URL, options);
+      AppLogger.info('Calling Gemini API', { 
+        jsonMode: options?.jsonMode,
+        grounding: options?.enableGrounding,
+        codeExecution: options?.enableCodeExecution
+      });
+      
+      const response = UrlFetchApp.fetch(Config.GEMINI_API_URL, requestOptions);
       const responseCode = response.getResponseCode();
       
       if (responseCode !== Constants.API.STATUS_OK) {
@@ -48,75 +116,36 @@ namespace AI {
       }
       
       const result = JSON.parse(response.getContentText());
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
       
-      if (!result.candidates || result.candidates.length === 0) {
+      if (!text) {
         return {
           success: false,
           error: Constants.ERRORS.MSG_NO_RESPONSE_TEXT
         };
       }
       
-      const content = result.candidates[0].content;
-      const text = content.parts[0].text;
+      // If grounding was used, extract grounding metadata
+      let groundingMetadata = null;
+      if (options?.enableGrounding && result.candidates?.[0]?.groundingMetadata) {
+        groundingMetadata = result.candidates[0].groundingMetadata;
+        AppLogger.info('Grounding metadata available', {
+          searchQueries: groundingMetadata.webSearchQueries?.length || 0
+        });
+      }
       
       return {
         success: true,
         response: text,
-        confidence: result.candidates[0].avgLogprobs || 0
+        confidence: result.candidates?.[0]?.safetyRatings?.[0]?.probability || 1
       };
       
     } catch (error) {
       AppLogger.error('Gemini API call failed', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : String(error)
       };
-    }
-  }
-  
-  /**
-   * Analyze writing style from sent emails
-   */
-  export function analyzeWritingStyle(sentEmails: GoogleAppsScript.Gmail.GmailMessage[]): Types.WritingStyle | null {
-    if (sentEmails.length === 0) {
-      AppLogger.warn('No sent emails to analyze');
-      return null;
-    }
-    
-    // Extract email bodies
-    const emailBodies = sentEmails
-      .slice(0, Config.MAX_SENT_EMAILS_TO_ANALYZE)
-      .map(email => Utils.cleanEmailBody(email.getPlainBody()))
-      .filter(body => body.length > Constants.EMAIL.MIN_EMAIL_LENGTH_FOR_ANALYSIS);
-    
-    if (emailBodies.length === 0) {
-      return null;
-    }
-    
-    const apiKey = Config.getProperty(Config.PROPERTY_KEYS.API_KEY);
-    const prompt = `${Config.PROMPTS.STYLE_ANALYSIS}\n\nEmails to analyze:\n${emailBodies.join('\n---\n')}`;
-    
-    const response = callGeminiAPI(prompt, apiKey);
-    
-    if (!response.success || !response.response) {
-      AppLogger.error('Failed to analyze writing style', response.error);
-      return null;
-    }
-    
-    try {
-      const styleData = JSON.parse(response.response);
-      return {
-        greetings: styleData.greetings || Constants.STYLE.DEFAULT_GREETINGS,
-        closings: styleData.closings || Constants.STYLE.DEFAULT_CLOSINGS,
-        sentencePatterns: styleData.sentencePatterns || [],
-        vocabulary: styleData.vocabulary || [],
-        formalityLevel: styleData.formalityLevel || Constants.STYLE.FORMALITY_NEUTRAL,
-        averageSentenceLength: styleData.averageSentenceLength || Constants.STYLE.DEFAULT_AVG_SENTENCE_LENGTH,
-        punctuationStyle: styleData.punctuationStyle || Constants.STYLE.DEFAULT_PUNCTUATION
-      };
-    } catch (error) {
-      AppLogger.error('Failed to parse style analysis', error);
-      return null;
     }
   }
   
@@ -126,102 +155,144 @@ namespace AI {
   export function generateEmailResponse(
     context: Types.EmailContext,
     style: Types.WritingStyle,
-    settings: Types.Config
+    userProfile: Types.UserProfile,
+    apiKey: string
   ): Types.AIResponse {
-    const apiKey = settings.apiKey;
-    
-    if (!apiKey) {
+    try {
+      const prompt = Prompts.getResponseGenerationPrompt(
+        context,
+        style,
+        userProfile,
+        Config.getSettings().customInstructions
+      );
+      
+      // Use standard mode for email generation (not JSON)
+      return callGeminiAPI(prompt, apiKey, {
+        enableGrounding: true // Enable grounding for more accurate responses
+      });
+      
+    } catch (error) {
+      AppLogger.error('Failed to generate response', error);
       return {
         success: false,
-        error: Constants.ERRORS.MSG_API_KEY_REQUIRED
+        error: error instanceof Error ? error.message : String(error)
       };
     }
-    
-    // Get user profile for assistant persona
-    const userProfile = UserProfile.getUserProfile();
-    
-    // Build improved prompt with assistant identity
-    const prompt = Prompts.getResponseGenerationPrompt(
-      context,
-      style,
-      userProfile,
-      settings.customInstructions
-    );
-    
-    AppLogger.info('Generating response as email assistant');
-    const response = callGeminiAPI(prompt, apiKey);
-    
-    if (response.success && response.response) {
-      // Add signature if provided
-      let finalResponse = response.response;
-      if (settings.signature) {
-        finalResponse += `\n\n${settings.signature}`;
-      }
-      
-      return {
-        success: true,
-        response: finalResponse,
-        confidence: response.confidence
-      };
-    }
-    
-    return response;
   }
   
   /**
-   * Get or create writing style
+   * Analyze writing style with strict JSON output
    */
-  export function getWritingStyle(): Types.WritingStyle {
-    // Try to get cached style
-    const cachedStyle = Config.getProperty(Config.PROPERTY_KEYS.WRITING_STYLE);
-    if (cachedStyle) {
-      const parsed = Utils.parseJsonSafe<Types.WritingStyle | null>(cachedStyle, null);
-      if (parsed) {
-        AppLogger.info('Using cached writing style');
-        return parsed;
+  export function analyzeWritingStyle(emails: string[], apiKey: string): Types.WritingStyle | null {
+    try {
+      const prompt = Prompts.getStyleAnalysisPrompt(Session.getActiveUser().getEmail());
+      const combinedEmails = emails.join('\n\n---\n\n');
+      const fullPrompt = `${prompt}\n\nEmails to analyze:\n${combinedEmails}`;
+      
+      // Use simple schema generation
+      const responseSchema = JsonValidator.createWritingStyleSchema();
+      
+      const response = callGeminiAPI(fullPrompt, apiKey, {
+        jsonMode: true,
+        responseSchema,
+        enableCodeExecution: true // Can help with analyzing patterns
+      });
+      
+      if (!response.success || !response.response) {
+        AppLogger.error('Style analysis failed', response.error);
+        return null;
+      }
+      
+      // Parse and validate the response
+      const parsed = JsonValidator.parseJson<any>(response.response, 'Writing Style Analysis');
+      if (!parsed) {
+        return null;
+      }
+      
+      // Validate and provide defaults
+      const validatedStyle = JsonValidator.validateWritingStyle(parsed);
+      return validatedStyle;
+      
+    } catch (error) {
+      AppLogger.error('Style analysis error', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get writing style (wrapper for analyzeWritingStyle)
+   */
+  export function getWritingStyle(): Types.WritingStyle | null {
+    const config = Config.getSettings();
+    if (!config.apiKey) {
+      AppLogger.error('No API key configured');
+      return null;
+    }
+
+    // Get cached style first
+    const cached = PropertiesService.getUserProperties().getProperty(Constants.PROPERTIES.WRITING_STYLE);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch {
+        // Continue to analyze
       }
     }
-    
-    // Analyze sent emails - get 200 directly
-    AppLogger.info('Analyzing writing style from sent emails');
-    const sentThreads = GmailApp.search('in:sent', 0, Config.MAX_SENT_EMAILS_TO_ANALYZE);
-    const sentEmails: GoogleAppsScript.Gmail.GmailMessage[] = [];
-    
-    // Collect up to 200 emails
-    for (const thread of sentThreads) {
-      const messages = thread.getMessages();
-      for (const message of messages) {
-        if (message.getFrom().includes(Session.getActiveUser().getEmail())) {
-          sentEmails.push(message);
-          if (sentEmails.length >= Config.MAX_SENT_EMAILS_TO_ANALYZE) {
-            break;
-          }
-        }
-      }
-      if (sentEmails.length >= Config.MAX_SENT_EMAILS_TO_ANALYZE) {
-        break;
-      }
+
+    // Analyze recent sent emails
+    const emails = GmailService.getRecentSentEmails(Constants.EMAIL.MAX_SENT_EMAILS_TO_ANALYZE);
+    if (emails.length === 0) {
+      return null;
     }
+
+    const style = analyzeWritingStyle(emails.map((e: { body: string }) => e.body), config.apiKey);
     
-    const style = analyzeWritingStyle(sentEmails);
-    
+    // Cache the result
     if (style) {
-      // Cache the style
-      Config.setProperty(Config.PROPERTY_KEYS.WRITING_STYLE, JSON.stringify(style));
-      Config.setProperty(Config.PROPERTY_KEYS.LAST_ANALYSIS, new Date().toISOString());
-      return style;
+      PropertiesService.getUserProperties().setProperty(
+        Constants.PROPERTIES.WRITING_STYLE,
+        JSON.stringify(style)
+      );
     }
-    
-    // Return default style
-    AppLogger.warn('Using default writing style');
-    return {
-      greetings: Constants.STYLE.DEFAULT_GREETINGS,
-      closings: Constants.STYLE.DEFAULT_CLOSINGS,
-      sentencePatterns: [],
-      vocabulary: [],
-      formalityLevel: Constants.STYLE.FORMALITY_NEUTRAL,
-      averageSentenceLength: Constants.STYLE.DEFAULT_AVG_SENTENCE_LENGTH,
-      punctuationStyle: Constants.STYLE.DEFAULT_PUNCTUATION
-    };
+
+    return style;
+  }
+
+  /**
+   * Improve user profile from thread with JSON mode
+   */
+  export function improveProfileFromThread(
+    currentProfile: Types.UserProfile,
+    threadContent: string,
+    apiKey: string
+  ): Types.UserProfile | null {
+    try {
+      const prompt = Prompts.getStyleImprovementPrompt(currentProfile, threadContent);
+      
+      // Use simple schema generation
+      const responseSchema = JsonValidator.createUserProfileSchema();
+      
+      const response = callGeminiAPI(prompt, apiKey, {
+        jsonMode: true,
+        responseSchema,
+        enableGrounding: true // Help with understanding context
+      });
+      
+      if (!response.success || !response.response) {
+        return null;
+      }
+      
+      // Parse and validate the response
+      const parsed = JsonValidator.parseJson<any>(response.response, 'User Profile Improvement');
+      if (!parsed) {
+        return null;
+      }
+      
+      // Validate and return
+      return JsonValidator.validateUserProfile(parsed);
+    } catch (error) {
+      AppLogger.error('Profile improvement failed', error);
+      return null;
+    }
   }
 }
