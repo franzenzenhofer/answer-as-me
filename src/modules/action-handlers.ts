@@ -1,17 +1,32 @@
 namespace ActionHandlers {
   /**
-   * Generate response action
+   * Generate response action - WITH IMMEDIATE DOC CREATION & COMPREHENSIVE LOGGING
    */
   export function generateResponse(e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    DebugLogger.logUserAction('Generate Response', 'ActionHandlers', { hasGmail: !!e.gmail, hasMessageId: !!e.gmail?.messageId });
+    
     try {
+      DebugLogger.info('ActionHandlers', '🚀 Starting response generation');
       AppLogger.info('🚀 Starting response generation', {
         hasGmail: !!e.gmail,
         hasMessageId: !!e.gmail?.messageId,
         timestamp: new Date().toISOString()
       });
       
+      // IMMEDIATELY CREATE PROMPT DOCUMENTS IF MISSING
+      try {
+        DebugLogger.info('ActionHandlers', 'Ensuring prompt documents exist');
+        GoogleDocsPrompts.createAllPromptDocuments();
+      } catch (error) {
+        DebugLogger.logError('ActionHandlers', error instanceof Error ? error : String(error), null, 'Failed to create prompt documents - may affect customization');
+      }
+      
       // Get settings with enhanced debugging
       const settings = Config.getSettings();
+      DebugLogger.logLogic('generateResponse', 'SETTINGS_LOADED', null, { 
+        hasApiKey: !!settings.apiKey, 
+        responseMode: settings.responseMode 
+      });
       AppLogger.info('📊 Settings loaded', {
         hasApiKey: !!settings.apiKey,
         apiKeyLength: settings.apiKey?.length || 0,
@@ -222,29 +237,26 @@ namespace ActionHandlers {
       
       // Save settings
       Config.saveSettings(updates);
+      DebugLogger.logLogic('saveSettings', 'SETTINGS_SAVED', updates, { success: true });
       
-      // Auto-create prompt documents when API key is first set
-      if (updates.apiKey && !PropertyManager.getProperty(Constants.PROPERTIES.PROMPTS_DOC_ID, 'script')) {
-        try {
-          AppLogger.info('First-time API key setup - creating prompt documents');
-          
-          // Create all prompt documents
-          const promptTypes = ['main', 'style', 'profile'];
-          for (const promptType of promptTypes) {
-            GoogleDocsPrompts.getOrCreatePromptDocument(promptType);
-            AppLogger.info(`Created ${promptType} prompt document`);
-          }
-          
-          return CardService.newActionResponseBuilder()
-            .setNotification(
-              CardService.newNotification()
-                .setText('Settings saved! Prompt documents created.')
-            )
-            .build();
-        } catch (error) {
-          AppLogger.warn('Failed to auto-create prompt documents', error);
-          // Continue with normal save response
-        }
+      // ALWAYS CREATE PROMPT DOCUMENTS - IMMEDIATELY!
+      try {
+        DebugLogger.info('ActionHandlers', 'Auto-creating ALL prompt documents after settings save');
+        const results = GoogleDocsPrompts.createAllPromptDocuments();
+        const successCount = Object.values(results).filter(id => id).length;
+        
+        DebugLogger.logUserAction('Settings Saved', 'ActionHandlers', updates, `Settings saved, ${successCount} prompt docs created`);
+        
+        return CardService.newActionResponseBuilder()
+          .setNotification(
+            CardService.newNotification()
+              .setText(`Settings saved! ${successCount} prompt documents ready for editing.`)
+          )
+          .build();
+      } catch (error) {
+        DebugLogger.logError('ActionHandlers', error instanceof Error ? error : String(error), null, 'Failed to create prompt documents - user cannot customize');
+        AppLogger.warn('Failed to auto-create prompt documents', error);
+        // Continue with normal save response
       }
       
       return CardService.newActionResponseBuilder()

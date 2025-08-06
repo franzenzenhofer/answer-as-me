@@ -8,36 +8,41 @@
 
 namespace Prompts {
   /**
-   * Get assistant identity prompt
-   * Fetched from ASSISTANT_IDENTITY Google Doc
+   * KISS APPROACH - Only 3 main prompt functions
    */
-  export function getAssistantIdentityPrompt(userEmail: string, userName?: string): string {
-    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.ASSISTANT_IDENTITY, {
+  
+  /**
+   * Get settings/identity prompt (combines old ASSISTANT_IDENTITY)
+   */
+  export function getSettingsPrompt(userEmail: string, userName?: string): string {
+    DebugLogger.logLogic('getSettingsPrompt', 'START', { userEmail, userName });
+    
+    // Auto-create documents if they don't exist
+    ensurePromptsExist();
+    
+    const result = GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.SETTINGS, {
       userEmail,
       userName: userName || userEmail
     });
+    
+    DebugLogger.logLogic('getSettingsPrompt', 'COMPLETE', { userEmail }, { promptLength: result.length });
+    return result;
   }
 
   /**
-   * Get style analysis prompt
-   * Fetched from STYLE_ANALYSIS Google Doc
+   * Get overview/response generation prompt (combines old RESPONSE_GENERATION)  
    */
-  export function getStyleAnalysisPrompt(userEmail: string): string {
-    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.STYLE_ANALYSIS, {
-      userEmail
-    });
-  }
-
-  /**
-   * Get response generation prompt
-   * Fetched from RESPONSE_GENERATION Google Doc
-   */
-  export function getResponseGenerationPrompt(
+  export function getOverviewPrompt(
     context: Types.EmailContext,
     style: Types.WritingStyle,
     userProfile: Types.UserProfile,
     instructions?: string
   ): string {
+    DebugLogger.logLogic('getOverviewPrompt', 'START', { subject: context.subject, hasStyle: !!style });
+    
+    // Auto-create documents if they don't exist
+    ensurePromptsExist();
+    
     // Build recipient info
     const recipientInfo = buildRecipientInfo(context);
     
@@ -50,7 +55,7 @@ namespace Prompts {
     // Build context summary
     const contextSummary = buildContextSummary(context);
     
-    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.RESPONSE_GENERATION, {
+    const result = GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.OVERVIEW, {
       context: contextSummary,
       identity,
       style: styleSummary,
@@ -58,64 +63,105 @@ namespace Prompts {
       instructions: instructions || 'None',
       userName: userProfile.name || userProfile.email
     });
+    
+    DebugLogger.logLogic('getOverviewPrompt', 'COMPLETE', 
+      { context: contextSummary.substring(0, 100) }, 
+      { promptLength: result.length }
+    );
+    return result;
   }
 
   /**
-   * Get style improvement prompt
-   * Fetched from STYLE_IMPROVEMENT Google Doc
+   * Get thread/learning prompt (combines old STYLE_ANALYSIS, STYLE_IMPROVEMENT, THREAD_LEARNING)
    */
+  export function getThreadPrompt(
+    userEmail: string,
+    threadMessages?: string,
+    currentProfile?: Types.UserProfile,
+    threadContent?: string
+  ): string {
+    DebugLogger.logLogic('getThreadPrompt', 'START', { 
+      userEmail, 
+      hasThreadMessages: !!threadMessages,
+      hasProfile: !!currentProfile 
+    });
+    
+    // Auto-create documents if they don't exist
+    ensurePromptsExist();
+    
+    const result = GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.THREAD, {
+      userEmail,
+      threadMessages: threadMessages || '',
+      currentProfile: currentProfile ? JSON.stringify(currentProfile, null, 2) : '',
+      threadContent: threadContent || ''
+    });
+    
+    DebugLogger.logLogic('getThreadPrompt', 'COMPLETE', { userEmail }, { promptLength: result.length });
+    return result;
+  }
+
+  /**
+   * Ensure all prompt documents exist - creates them immediately if missing
+   */
+  function ensurePromptsExist(): void {
+    try {
+      // Check if any documents are missing and create them immediately
+      const promptTypes = Object.values(Constants.PROMPTS.TYPES);
+      let missingDocs = 0;
+      
+      for (const promptType of promptTypes) {
+        const docIdKey = `${Constants.PROMPTS.DOC_ID_PREFIX}${promptType}`;
+        const docId = PropertyManager.getProperty(docIdKey, 'user');
+        
+        if (!docId) {
+          missingDocs++;
+        }
+      }
+      
+      if (missingDocs > 0) {
+        DebugLogger.info('Prompts', `Creating ${missingDocs} missing prompt documents`);
+        GoogleDocsPrompts.createAllPromptDocuments();
+      }
+    } catch (error) {
+      DebugLogger.logError('Prompts', error instanceof Error ? error : String(error), null, 'Failed to ensure prompts exist - may use fallback prompts');
+    }
+  }
+
+  // Legacy compatibility functions - redirect to new simplified functions
+  
+  export function getAssistantIdentityPrompt(userEmail: string, userName?: string): string {
+    return getSettingsPrompt(userEmail, userName);
+  }
+
+  export function getResponseGenerationPrompt(
+    context: Types.EmailContext,
+    style: Types.WritingStyle,
+    userProfile: Types.UserProfile,
+    instructions?: string
+  ): string {
+    return getOverviewPrompt(context, style, userProfile, instructions);
+  }
+
+  export function getStyleAnalysisPrompt(userEmail: string): string {
+    return getThreadPrompt(userEmail);
+  }
+
   export function getStyleImprovementPrompt(
     currentProfile: Types.UserProfile,
     threadContent: string
   ): string {
-    const profileSummary = JSON.stringify(currentProfile, null, 2);
-    
-    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.STYLE_IMPROVEMENT, {
-      userEmail: currentProfile.email,
-      currentProfile: profileSummary,
-      threadContent
-    });
+    return getThreadPrompt(currentProfile.email, undefined, currentProfile, threadContent);
   }
 
-  /**
-   * Get thread learning prompt
-   * Fetched from THREAD_LEARNING Google Doc
-   */
   export function getThreadLearningPrompt(
     userEmail: string,
     threadMessages: string
   ): string {
-    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.THREAD_LEARNING, {
-      userEmail,
-      threadMessages
-    });
+    return getThreadPrompt(userEmail, threadMessages);
   }
 
-  /**
-   * Get error context prompt
-   * Fetched from ERROR_CONTEXT Google Doc
-   */
-  export function getErrorContextPrompt(
-    errorType: string,
-    context: string
-  ): string {
-    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.ERROR_CONTEXT, {
-      errorType,
-      context
-    });
-  }
-
-  /**
-   * Get initial profile prompt
-   * This one is also fetched from Google Docs
-   */
   export function getInitialProfilePrompt(userName: string, userEmail: string): string {
-    // This uses the ASSISTANT_IDENTITY doc with special instructions
-    return GoogleDocsPrompts.getPrompt(Constants.PROMPTS.TYPES.ASSISTANT_IDENTITY, {
-      userName,
-      userEmail,
-      instructions: 'Create initial profile'
-    });
+    return getSettingsPrompt(userEmail, userName);
   }
 
   // Helper functions to build prompt variables

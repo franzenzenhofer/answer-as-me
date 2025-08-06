@@ -392,24 +392,18 @@ namespace Constants {
     DOC_TITLE_PREFIX: 'Answer As Me - Prompt:',
     DEFAULT_VERSION: '1.0.0',
     
-    // Prompt types (each gets its own doc)
+    // KISS: Only 3 prompt types for simplicity
     TYPES: {
-      ASSISTANT_IDENTITY: 'ASSISTANT_IDENTITY',
-      STYLE_ANALYSIS: 'STYLE_ANALYSIS', 
-      RESPONSE_GENERATION: 'RESPONSE_GENERATION',
-      STYLE_IMPROVEMENT: 'STYLE_IMPROVEMENT',
-      THREAD_LEARNING: 'THREAD_LEARNING',
-      ERROR_CONTEXT: 'ERROR_CONTEXT'
+      SETTINGS: 'SETTINGS',
+      OVERVIEW: 'OVERVIEW', 
+      THREAD: 'THREAD'
     },
     
-    // Document names  
+    // Document names for the 3 simple prompts
     DOC_NAMES: {
-      ASSISTANT_IDENTITY: 'Assistant Identity',
-      STYLE_ANALYSIS: 'Style Analysis',
-      RESPONSE_GENERATION: 'Response Generation',
-      STYLE_IMPROVEMENT: 'Style Improvement',
-      THREAD_LEARNING: 'Thread Learning',
-      ERROR_CONTEXT: 'Error Context'
+      SETTINGS: 'Settings & Identity',
+      OVERVIEW: 'Overview & Response Generation',
+      THREAD: 'Thread Analysis & Learning'
     } as { [key: string]: string },
     
     // Cache settings

@@ -58,10 +58,11 @@ namespace Config {
     QUESTION: Constants.PATTERNS.QUESTION
   };
   
-  // System prompts
+  // System prompts (updated to use available types)
   export const PROMPTS = {
-    STYLE_ANALYSIS: Constants.PROMPTS.TYPES.STYLE_ANALYSIS,
-    RESPONSE_GENERATION: Constants.PROMPTS.TYPES.RESPONSE_GENERATION
+    SETTINGS: Constants.PROMPTS.TYPES.SETTINGS,
+    OVERVIEW: Constants.PROMPTS.TYPES.OVERVIEW,
+    THREAD: Constants.PROMPTS.TYPES.THREAD
   };
   
   /**

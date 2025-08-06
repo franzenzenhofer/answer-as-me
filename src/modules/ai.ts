@@ -22,6 +22,14 @@ namespace AI {
    * Test API key with simple request - SUPER DEBUGGABLE
    */
   export function testApiKey(apiKey: string): { success: boolean; error?: string } {
+    const startTime = Date.now();
+    DebugLogger.logAI('REQUEST', 'AI.testApiKey', 'Say "API key works!"', {
+      apiKey: `${apiKey.substring(0, 8)}...${apiKey.slice(-4)}`,
+      length: apiKey.length,
+      isValid: apiKey.startsWith('AIza'),
+      purpose: 'API_KEY_TEST'
+    });
+    
     AppLogger.info('🧪 TESTING API KEY', {
       key: `${apiKey.substring(0, 8)}...${apiKey.slice(-4)}`,
       length: apiKey.length,
@@ -30,11 +38,23 @@ namespace AI {
     });
     
     const testResult = callGeminiAPI('Say "API key works!"', apiKey);
+    const duration = Date.now() - startTime;
     
     if (testResult.success) {
+      DebugLogger.logAI('RESPONSE', 'AI.testApiKey', testResult.response || 'success', {
+        success: true,
+        duration: duration,
+        purpose: 'API_KEY_TEST'
+      });
       AppLogger.info('✅ API KEY TEST PASSED', testResult);
       return { success: true };
     } else {
+      DebugLogger.logAI('RESPONSE', 'AI.testApiKey', testResult.error || 'failed', {
+        success: false,
+        duration: duration,
+        error: testResult.error,
+        purpose: 'API_KEY_TEST'
+      });
       AppLogger.error('❌ API KEY TEST FAILED', testResult);
       return { success: false, error: testResult.error };
     }
@@ -56,12 +76,35 @@ namespace AI {
       enableCodeExecution?: boolean;
     }
   ): Types.AIResponse {
+    const startTime = Date.now();
+    const requestId = Utilities.getUuid().substring(0, 8);
+    
+    // Log the request with comprehensive details
+    DebugLogger.logAI('REQUEST', 'AI.callGeminiAPI', prompt, {
+      requestId: requestId,
+      apiKey: `${apiKey.substring(0, 8)}...${apiKey.slice(-4)}`,
+      options: options,
+      promptLength: prompt.length,
+      timestamp: new Date().toISOString()
+    });
+    
     // Validate API key
     const keyValidation = validateApiKey(apiKey);
     if (!keyValidation.isValid) {
+      const duration = Date.now() - startTime;
+      const error = keyValidation.error || Constants.ERRORS.MSG_API_KEY_REQUIRED;
+      
+      DebugLogger.logAI('RESPONSE', 'AI.callGeminiAPI', error, {
+        requestId: requestId,
+        success: false,
+        duration: duration,
+        error: error,
+        validationFailed: true
+      });
+      
       return {
         success: false,
-        error: keyValidation.error || Constants.ERRORS.MSG_API_KEY_REQUIRED
+        error: error
       };
     }
     
@@ -275,6 +318,20 @@ namespace AI {
         });
       }
       
+      const duration = Date.now() - startTime;
+      const responseLength = text.length;
+      
+      // Log successful response
+      DebugLogger.logAI('RESPONSE', 'AI.callGeminiAPI', text.substring(0, 500) + (text.length > 500 ? '...' : ''), {
+        requestId: requestId,
+        success: true,
+        duration: duration,
+        responseLength: responseLength,
+        confidence: result.candidates?.[0]?.safetyRatings?.[0]?.probability || 1,
+        finishReason: result.candidates?.[0]?.finishReason,
+        hasGrounding: !!groundingMetadata
+      });
+      
       return {
         success: true,
         response: text,
@@ -282,8 +339,18 @@ namespace AI {
       };
       
     } catch (error) {
-      // Check if error is timeout-related
+      const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Log the error with full context
+      DebugLogger.logError('AI.callGeminiAPI', error instanceof Error ? error : String(error), {
+        requestId: requestId,
+        duration: duration,
+        prompt: `${prompt.substring(0, 200)  }...`,
+        options: options
+      }, 'AI request failed - user cannot generate email responses');
+      
+      // Check if error is timeout-related
       
       if (errorMessage.toLowerCase().includes('timeout') || 
           errorMessage.toLowerCase().includes('timed out')) {
@@ -364,16 +431,43 @@ namespace AI {
   }
   
   /**
-   * Analyze writing style with strict JSON output
+   * Analyze writing style with robust error handling
    */
   export function analyzeWritingStyle(emails: string[], apiKey: string): Types.WritingStyle | null {
+    // Validate inputs first
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      AppLogger.warn('No emails provided for style analysis');
+      return null;
+    }
+    
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+      AppLogger.warn('No valid API key provided for style analysis');
+      return null;
+    }
+    
     try {
+      // Filter and validate email content
+      const validEmails = emails.filter(email => 
+        email && typeof email === 'string' && email.trim().length > 10
+      );
+      
+      if (validEmails.length === 0) {
+        AppLogger.warn('No valid email content for style analysis');
+        return null;
+      }
+      
       const prompt = Prompts.getStyleAnalysisPrompt(Session.getActiveUser().getEmail());
-      const combinedEmails = emails.join('\n\n---\n\n');
+      const combinedEmails = validEmails.join('\n\n---\n\n');
       const fullPrompt = `${prompt}\n\nEmails to analyze:\n${combinedEmails}`;
       
-      // Use simple schema generation
-      const responseSchema = JsonValidator.createWritingStyleSchema();
+      // Use simple schema generation with error handling
+      let responseSchema;
+      try {
+        responseSchema = JsonValidator.createWritingStyleSchema();
+      } catch (schemaError) {
+        AppLogger.error('Failed to create response schema', schemaError);
+        return null;
+      }
       
       const response = callGeminiAPI(fullPrompt, apiKey, {
         jsonMode: true,
@@ -382,92 +476,181 @@ namespace AI {
       });
       
       if (!response.success || !response.response) {
-        AppLogger.error('Style analysis failed', response.error);
+        AppLogger.error('Style analysis API call failed', response.error);
         return null;
       }
       
-      // Parse and validate the response with error boundary
+      // Parse and validate the response with comprehensive error handling
       let parsed: unknown;
       try {
         parsed = JsonValidator.parseJson<any>(response.response, 'Writing Style Analysis');
         if (!parsed) {
-          throw new Error('Failed to parse JSON response');
+          throw new Error('JSON parser returned null/undefined');
         }
       } catch (parseError) {
         AppLogger.error('Failed to parse style analysis response', {
           error: parseError,
-          responseText: response.response?.substring(0, 500)
+          responseText: response.response?.substring(0, 500),
+          responseLength: response.response?.length
         });
         return null;
       }
       
-      // Validate and provide defaults
-      const validatedStyle = JsonValidator.validateWritingStyle(parsed);
-      return validatedStyle;
+      // Validate and provide defaults with error handling
+      try {
+        const validatedStyle = JsonValidator.validateWritingStyle(parsed);
+        if (validatedStyle) {
+          AppLogger.info('Successfully analyzed writing style from emails');
+          return validatedStyle;
+        } else {
+          AppLogger.warn('Style validation returned null');
+          return null;
+        }
+      } catch (validationError) {
+        AppLogger.error('Failed to validate writing style', validationError);
+        return null;
+      }
       
     } catch (error) {
-      AppLogger.error('Style analysis error', error);
+      AppLogger.error('Unexpected error in style analysis', {
+        error: error,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return null;
     }
   }
 
   /**
-   * Get writing style (wrapper for analyzeWritingStyle)
+   * Create a default writing style - bulletproof fallback
    */
-  export function getWritingStyle(): Types.WritingStyle | null {
-    const config = Config.getSettings();
-    if (!config.apiKey) {
-      AppLogger.error('No API key configured');
-      return null;
-    }
+  function createDefaultWritingStyle(): Types.WritingStyle {
+    return {
+      greetings: [
+        'Hi',
+        'Hello',
+        'Good morning',
+        'Good afternoon',
+        'Dear'
+      ],
+      closings: [
+        'Best regards',
+        'Thanks',
+        'Kind regards',
+        'Cheers',
+        'Best'
+      ],
+      sentencePatterns: [
+        'I hope this email finds you well.',
+        'Thank you for your message.',
+        'I wanted to follow up on',
+        'Please let me know if you have any questions.'
+      ],
+      vocabulary: [
+        'please',
+        'thank you',
+        'regarding',
+        'following up',
+        'appreciate',
+        'understand',
+        'available',
+        'discuss'
+      ],
+      formalityLevel: 3, // Medium formality (1-5 scale)
+      averageSentenceLength: 15,
+      emailLength: 'medium',
+      punctuationStyle: 'standard'
+    };
+  }
 
-    // Get cached style first with thread safety
-    const cached = PropertyManager.getProperty(Constants.PROPERTIES.WRITING_STYLE, 'user');
-    if (cached) {
-      try {
+  /**
+   * Get writing style - BULLETPROOF version that ALWAYS returns a valid style
+   * KISS principle: Keep it simple, always work
+   */
+  export function getWritingStyle(): Types.WritingStyle {
+    const config = Config.getSettings();
+    
+    // Step 1: Try to get cached style (safest option)
+    try {
+      const cached = PropertyManager.getProperty(Constants.PROPERTIES.WRITING_STYLE, 'user');
+      if (cached) {
         const parsedCache = JSON.parse(cached);
         // Validate cached data structure
         if (parsedCache && typeof parsedCache === 'object' && 
-            Array.isArray(parsedCache.greetings) && Array.isArray(parsedCache.closings)) {
+            Array.isArray(parsedCache.greetings) && Array.isArray(parsedCache.closings) &&
+            typeof parsedCache.formalityLevel === 'number') {
+          AppLogger.info('Using cached writing style');
           return parsedCache;
         }
-        AppLogger.warn('Invalid cached writing style structure, re-analyzing');
-      } catch (error) {
-        AppLogger.warn('Failed to parse cached writing style', error);
-        // Clear invalid cache
-        PropertyManager.deleteProperty(Constants.PROPERTIES.WRITING_STYLE, 'user');
+        AppLogger.warn('Invalid cached writing style, will regenerate');
       }
-    }
-
-    // Analyze recent sent emails with error handling
-    try {
-      const emails = GmailService.getRecentSentEmails(Constants.EMAIL.MAX_SENT_EMAILS_TO_ANALYZE);
-      if (emails.length === 0) {
-        AppLogger.info('No sent emails found for style analysis');
-        return null;
-      }
-
-      const style = analyzeWritingStyle(emails.map((e: { body: string }) => e.body), config.apiKey);
-      
-      // Cache the result only if valid
-      if (style) {
-        try {
-          PropertyManager.setProperty(
-            Constants.PROPERTIES.WRITING_STYLE,
-            JSON.stringify(style),
-            'user'
-          );
-        } catch (cacheError) {
-          AppLogger.error('Failed to cache writing style', cacheError);
-          // Continue - style analysis succeeded even if caching failed
-        }
-      }
-
-      return style;
     } catch (error) {
-      AppLogger.error('Failed to get writing style', error);
-      return null;
+      AppLogger.warn('Failed to parse cached writing style', error);
+      // Continue to next step - don't fail
     }
+
+    // Step 2: Try to analyze recent emails (if API key is available)
+    if (config.apiKey) {
+      try {
+        const emails = GmailService.getRecentSentEmails(Constants.EMAIL.MAX_SENT_EMAILS_TO_ANALYZE);
+        
+        if (emails && emails.length > 0) {
+          // Safely extract email bodies with validation
+          const emailBodies: string[] = [];
+          for (const email of emails) {
+            if (email && typeof email === 'object' && email.body && typeof email.body === 'string' && email.body.trim().length > 10) {
+              emailBodies.push(email.body);
+            }
+          }
+          
+          if (emailBodies.length > 0) {
+            const style = analyzeWritingStyle(emailBodies, config.apiKey);
+            if (style) {
+              // Cache the successful result
+              try {
+                PropertyManager.setProperty(
+                  Constants.PROPERTIES.WRITING_STYLE,
+                  JSON.stringify(style),
+                  'user'
+                );
+                AppLogger.info('Successfully analyzed and cached writing style');
+                return style;
+              } catch (cacheError) {
+                AppLogger.warn('Failed to cache writing style but analysis succeeded', cacheError);
+                return style; // Still return the analyzed style even if caching failed
+              }
+            }
+          } else {
+            AppLogger.info('No valid email bodies found for analysis');
+          }
+        } else {
+          AppLogger.info('No sent emails available for style analysis');
+        }
+      } catch (error) {
+        AppLogger.warn('Failed to analyze writing style from emails', error);
+        // Continue to default - don't fail
+      }
+    } else {
+      AppLogger.info('No API key configured, using default writing style');
+    }
+
+    // Step 3: ALWAYS return a default style (bulletproof fallback)
+    AppLogger.info('Using default writing style');
+    const defaultStyle = createDefaultWritingStyle();
+    
+    // Try to cache the default style for future use
+    try {
+      PropertyManager.setProperty(
+        Constants.PROPERTIES.WRITING_STYLE,
+        JSON.stringify(defaultStyle),
+        'user'
+      );
+    } catch (cacheError) {
+      AppLogger.warn('Failed to cache default writing style', cacheError);
+      // Continue - not critical
+    }
+    
+    return defaultStyle;
   }
 
   /**

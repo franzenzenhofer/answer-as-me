@@ -3,6 +3,8 @@
  * This file contains the global functions that Google Apps Script calls
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /// <reference path="./modules/types.ts" />
 /// <reference path="./modules/entry-points.ts" />
 
@@ -128,7 +130,9 @@ function onStyleAnalysis(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScri
 /**
  * Generate response with specific formality
  */
-function generateResponseWithFormality(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+function generateResponseWithFormality(
+  e: GoogleAppsScript.Addons.EventObject
+): GoogleAppsScript.Card_Service.ActionResponse {
   return ActionHandlers.generateResponseWithFormality(e);
 }
 

@@ -37,28 +37,38 @@ namespace GoogleDocsPrompts {
   }
 
   /**
-   * Get or create a prompt document for a specific type
+   * Get or create a prompt document for a specific type - ALWAYS CREATES IMMEDIATELY
    */
   export function getOrCreatePromptDocument(promptType: string): string {
+    const startTime = Date.now();
+    DebugLogger.logLogic('getOrCreatePromptDocument', 'START', { promptType });
+    
     // Validate prompt type to prevent injection
     if (!promptType || typeof promptType !== 'string' || promptType.length > 50) {
-      throw new Error('Invalid prompt type');
+      const error = 'Invalid prompt type';
+      DebugLogger.logError('GoogleDocsPrompts', error, { promptType });
+      throw new Error(error);
     }
     
-    // Only allow known prompt types or alphanumeric custom types
+    // Only allow known prompt types 
     const knownTypes = Object.values(Constants.PROMPTS.TYPES);
-    if (!knownTypes.includes(promptType) && !/^[a-zA-Z0-9_-]+$/.test(promptType)) {
-      throw new Error('Invalid prompt type format');
+    if (!knownTypes.includes(promptType)) {
+      const error = 'Invalid prompt type format';
+      DebugLogger.logError('GoogleDocsPrompts', error, { promptType, knownTypes });
+      throw new Error(error);
     }
     
     const docIdKey = `${Constants.PROMPTS.DOC_ID_PREFIX}${promptType}`;
     let docId = PropertyManager.getProperty(docIdKey, 'user');
+    let created = false;
 
+    // ALWAYS CREATE IF DOESN'T EXIST - NO DELAYS!
     if (!docId) {
       try {
+        DebugLogger.info('GoogleDocsPrompts', `Creating new prompt document for ${promptType}`);
+        
         // Create new document with sanitized title
         const docName = Constants.PROMPTS.DOC_NAMES[promptType] || promptType;
-        // Sanitize title to prevent injection
         const sanitizedDocName = docName
           .replace(/[^a-zA-Z0-9\s\-_]/g, '') // Remove special characters
           .substring(0, 100); // Limit length
@@ -68,8 +78,11 @@ namespace GoogleDocsPrompts {
         }
         
         const title = `${Constants.PROMPTS.DOC_TITLE_PREFIX} ${sanitizedDocName}`;
+        DebugLogger.debug('GoogleDocsPrompts', `Creating doc with title: ${title}`);
+        
         const doc = DocumentApp.create(title);
         docId = doc.getId();
+        created = true;
         
         // Set initial content from template
         const body = doc.getBody();
@@ -89,14 +102,82 @@ namespace GoogleDocsPrompts {
         // Move to a dedicated folder
         createPromptsFolderIfNeeded(file);
         
+        const duration = Date.now() - startTime;
+        DebugLogger.logLogic('getOrCreatePromptDocument', 'CREATED', 
+          { promptType, docId, title }, 
+          { docId, created: true },
+          'Successfully created new prompt document',
+          duration
+        );
+        
         AppLogger.info('Created prompt document', { promptType, docId, title });
       } catch (error) {
+        const duration = Date.now() - startTime;
+        DebugLogger.logError('GoogleDocsPrompts', error instanceof Error ? error : String(error), { promptType }, 'Failed to create prompt document - user cannot customize prompts');
+        DebugLogger.logLogic('getOrCreatePromptDocument', 'ERROR', { promptType }, null, 'Failed to create document', duration);
         AppLogger.error('Failed to create prompt document', { promptType, error });
         throw new Error(`${Constants.ERRORS.PROMPT_DOC_CREATE_FAILED}: ${promptType}`);
       }
+    } else {
+      // Document exists - verify it's still accessible
+      try {
+        const doc = DocumentApp.openById(docId);
+        const title = doc.getName();
+        DebugLogger.debug('GoogleDocsPrompts', `Using existing document: ${title}`, { docId });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_error) {
+        // Document exists in properties but is inaccessible - recreate it
+        DebugLogger.warn('GoogleDocsPrompts', 'Existing document inaccessible, recreating', { docId, promptType });
+        PropertyManager.deleteProperty(docIdKey, 'user');
+        return getOrCreatePromptDocument(promptType); // Recursive call to create new one
+      }
     }
 
+    const duration = Date.now() - startTime;
+    DebugLogger.logLogic('getOrCreatePromptDocument', 'COMPLETE', 
+      { promptType }, 
+      { docId, created },
+      created ? 'Created new document' : 'Using existing document',
+      duration
+    );
+
     return docId;
+  }
+
+  /**
+   * Create ALL prompt documents immediately - KISS approach
+   */
+  export function createAllPromptDocuments(): { [key: string]: string } {
+    DebugLogger.logLogic('createAllPromptDocuments', 'START', null);
+    const startTime = Date.now();
+    const results: { [key: string]: string } = {};
+    
+    // Create all 3 prompt types immediately
+    const promptTypes = Object.values(Constants.PROMPTS.TYPES);
+    
+    for (const promptType of promptTypes) {
+      try {
+        DebugLogger.info('GoogleDocsPrompts', `Creating prompt document: ${promptType}`);
+        const docId = getOrCreatePromptDocument(promptType);
+        results[promptType] = docId;
+        DebugLogger.debug('GoogleDocsPrompts', `Created ${promptType} document`, { docId });
+      } catch (error) {
+        DebugLogger.logError('GoogleDocsPrompts', error instanceof Error ? error : String(error), { promptType }, `Failed to create ${promptType} document`);
+        results[promptType] = '';
+      }
+    }
+    
+    const duration = Date.now() - startTime;
+    const successCount = Object.values(results).filter(id => id).length;
+    
+    DebugLogger.logLogic('createAllPromptDocuments', 'COMPLETE', 
+      { promptTypes }, 
+      results,
+      `Created ${successCount}/${promptTypes.length} prompt documents`,
+      duration
+    );
+    
+    return results;
   }
 
   /**
@@ -306,60 +387,35 @@ namespace GoogleDocsPrompts {
 `;
 
     const templates: { [key: string]: string } = {
-      ASSISTANT_IDENTITY: `${header}You are the personal email assistant for {{userName}} ({{userEmail}}).
+      SETTINGS: `${header}You are the personal email assistant for {{userName}} ({{userEmail}}).
 
-YOUR IDENTITY:
+YOUR IDENTITY & SETTINGS:
 - You work exclusively for {{userName}} ({{userEmail}})
-- You know their communication style intimately from analyzing their emails
+- You know their communication style from analyzing their emails
 - You draft responses as if you were them, not as an AI
 - You understand their role, relationships, and communication patterns
 - You maintain their professional reputation in every response
 
-YOUR CAPABILITIES:
-- You have analyzed their sent emails to understand their style
-- You adapt tone based on recipient and context
-- You use their typical vocabulary and expressions
-- You mirror their level of formality/informality
-
-IMPORTANT:
+KEY INSTRUCTIONS:
 - Write in first person as {{userName}}
 - Never reveal you are an AI assistant
-- Maintain consistency with their established communication patterns`,
+- Adapt tone based on recipient and context
+- Use their typical vocabulary and expressions
+- Mirror their level of formality/informality
 
-      STYLE_ANALYSIS: `${header}Analyze the provided sent emails to extract writing style and communication patterns for {{userEmail}}.
+CUSTOM SETTINGS:
+You can customize these settings below:
+- Default formality level
+- Typical greetings and closings
+- Professional role and expertise
+- Special instructions for all emails
+- Email signature preferences
 
-Focus on:
-1. **Greetings**: How emails typically start
-   - To colleagues (same domain)
-   - To clients/external contacts
-   - To casual contacts
+Edit this document to customize the assistant's behavior and identity.`,
 
-2. **Closings**: How emails typically end
-   - Professional contexts
-   - Casual contexts
-   - Client communications
+      OVERVIEW: `${header}Generate an email response based on the following context:
 
-3. **Tone and Formality**:
-   - Overall formality level (1-5 scale)
-   - Directness vs. diplomatic approach
-   - Use of humor or warmth
-   - Technical vs. conversational language
-
-4. **Vocabulary**:
-   - Common phrases and expressions
-   - Professional jargon used
-   - Words/phrases to avoid
-
-5. **Structure**:
-   - Email length preferences
-   - Paragraph structure
-   - Use of bullets or numbering
-
-Extract specific examples and patterns, not general observations.`,
-
-      RESPONSE_GENERATION: `${header}Generate an email response based on the following context:
-
-**CONTEXT:**
+**EMAIL CONTEXT:**
 {{context}}
 
 **YOUR IDENTITY:**
@@ -368,56 +424,58 @@ Extract specific examples and patterns, not general observations.`,
 **WRITING STYLE:**
 {{style}}
 
-**RELATIONSHIP:**
+**RECIPIENT RELATIONSHIP:**
 {{recipientInfo}}
 
 **SPECIAL INSTRUCTIONS:**
 {{instructions}}
 
-REQUIREMENTS:
+RESPONSE REQUIREMENTS:
 1. Write as {{userName}}, not about them
 2. Match their typical tone for this recipient type
 3. Use appropriate greeting and closing from their patterns
 4. Maintain their vocabulary and expression style
 5. Keep consistent with their email length preferences
 6. Apply any special instructions provided
+7. Generate a complete email response ready to send
 
-Generate a complete email response ready to send.`,
+CUSTOMIZATION:
+You can edit this document to change how responses are generated:
+- Add specific response templates
+- Modify the tone and style guidelines
+- Include industry-specific language preferences
+- Add context-specific instructions`,
 
-      STYLE_IMPROVEMENT: `${header}Analyze this email thread to improve understanding of {{userEmail}}'s communication style.
+      THREAD: `${header}Analyze email threads and learn communication patterns for {{userEmail}}.
 
-**CURRENT PROFILE:**
-{{currentProfile}}
-
-**THREAD CONTENT:**
+**CURRENT ANALYSIS CONTEXT:**
 {{threadContent}}
 
-Extract new insights about:
-1. Communication patterns specific to this context
-2. Vocabulary or phrases not previously captured
-3. Tone adaptations for this recipient/situation
-4. Any unique stylistic elements
+**USER PROFILE:**
+{{currentProfile}}
 
-Merge these insights with the existing profile to create an improved understanding.`,
+**THREAD MESSAGES:**
+{{threadMessages}}
 
-      THREAD_LEARNING: `${header}Learn from this specific email thread to enhance the assistant's understanding.
+ANALYSIS TASKS:
+1. **Style Analysis**: Extract greetings, closings, tone patterns
+2. **Relationship Dynamics**: Understand communication with different recipients
+3. **Vocabulary Patterns**: Common phrases and expressions used
+4. **Context Adaptation**: How style changes based on situation
+5. **Learning Integration**: Update understanding based on new examples
 
-**USER EMAIL:** {{userEmail}}
-**THREAD MESSAGES:** {{threadMessages}}
+LEARNING OUTPUTS:
+- Communication patterns specific to this context
+- Vocabulary or phrases not previously captured
+- Tone adaptations for this recipient/situation
+- Unique stylistic elements to remember
 
-Analyze:
-1. Relationship dynamics in this thread
-2. Topic-specific vocabulary used
-3. Tone progression through the conversation
-4. Any unique patterns or preferences shown
-
-Update the user profile with these specific learnings.`,
-
-      ERROR_CONTEXT: `${header}The email draft generation encountered an issue. Please try again with this context:
-
-**ERROR:** {{errorType}}
-**CONTEXT:** {{context}}
-**INSTRUCTION:** Generate a helpful response that acknowledges the limitation while still providing value.`
+CUSTOMIZATION:
+Edit this document to control how the assistant learns from your emails:
+- Focus areas for style analysis
+- Specific patterns to watch for
+- Recipients to treat differently
+- Context-specific learning rules`
     };
 
     return templates[promptType] || `${header}[Template for ${promptType} - Please customize this prompt]`;

@@ -468,9 +468,16 @@ namespace UI {
     
     card.addSection(responseSection);
     
-    // Prompts Management
+    // KISS: Simplified 3-Prompt Management + Debug Logging
     const promptsSection = CardService.newCardSection()
-      .setHeader('<b>📄 Prompts Management</b>');
+      .setHeader('<b>📄 KISS Prompt Management - 3 Simple Cards</b>');
+    
+    // Auto-create documents immediately
+    try {
+      GoogleDocsPrompts.createAllPromptDocuments();
+    } catch (error) {
+      DebugLogger.logError('UI', error instanceof Error ? error : String(error), null, 'Failed to create prompt documents in UI');
+    }
     
     // Style Analysis Status
     const hasStyle = PropertyManager.getProperty(Constants.PROPERTIES.WRITING_STYLE, 'user');
@@ -490,61 +497,68 @@ namespace UI {
       .setText(styleInfo);
     promptsSection.addWidget(styleText);
     
-    // Prompts Status & Direct Editing
-    const promptsDocId = PropertyManager.getProperty(Constants.PROPERTIES.PROMPTS_DOC_ID, 'script');
+    // Direct links to 3 prompt documents - KISS approach
+    const promptInfo = CardService.newTextParagraph()
+      .setText('Prompts: ✅ Ready - Click to edit in Google Docs');
+    promptsSection.addWidget(promptInfo);
     
-    if (promptsDocId) {
-      try {
-        const doc = DocumentApp.openById(promptsDocId);
-        const url = doc.getUrl();
-        
-        const promptsInfo = CardService.newTextParagraph()
-          .setText(`Prompts: ✅ Custom - <a href=\"${url}\">📄 Edit in Google Docs</a>`);
-        promptsSection.addWidget(promptsInfo);
-        
-        // Individual prompt editing buttons
-        const promptButtons = CardService.newButtonSet()
-          .addButton(
-            CardService.newTextButton()
-              .setText('Main')
-              .setOnClickAction(
-                CardService.newAction()
-                  .setFunctionName('handleCreatePromptDoc')
-                  .setParameters({ promptType: 'main' })
-              )
+    // KISS: Only 3 simple prompt editing buttons
+    const promptButtons = CardService.newButtonSet()
+      .addButton(
+        CardService.newTextButton()
+          .setText('⚙️ Settings')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('handleCreatePromptDoc')
+              .setParameters({ promptType: 'SETTINGS' })
           )
-          .addButton(
-            CardService.newTextButton()
-              .setText('Style')
-              .setOnClickAction(
-                CardService.newAction()
-                  .setFunctionName('handleCreatePromptDoc')
-                  .setParameters({ promptType: 'style' })
-              )
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText('📊 Overview')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('handleCreatePromptDoc')
+              .setParameters({ promptType: 'OVERVIEW' })
           )
-          .addButton(
-            CardService.newTextButton()
-              .setText('Profile')
-              .setOnClickAction(
-                CardService.newAction()
-                  .setFunctionName('handleCreatePromptDoc')
-                  .setParameters({ promptType: 'profile' })
-              )
-          );
-        
-        promptsSection.addWidget(promptButtons);
-      } catch {
-        const promptsInfo = CardService.newTextParagraph()
-          .setText('Prompts: ❌ Error - Click to recreate');
-        promptsSection.addWidget(promptsInfo);
-      }
-    } else {
-      const promptsInfo = CardService.newTextParagraph()
-        .setText('Prompts: ⏳ Default - Will be created when you save API key');
-      promptsSection.addWidget(promptsInfo);
-    }
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText('🧵 Thread')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('handleCreatePromptDoc')
+              .setParameters({ promptType: 'THREAD' })
+          )
+      );
+    
+    promptsSection.addWidget(promptButtons);
     
     card.addSection(promptsSection);
+    
+    // DEBUG LOGGING SECTION
+    const debugSection = CardService.newCardSection()
+      .setHeader('<b>🐛 Super Debug Logging</b>');
+    
+    try {
+      const debugSpreadsheetUrl = DebugLogger.getTodaysSpreadsheetUrl();
+      if (debugSpreadsheetUrl) {
+        const debugInfo = CardService.newTextParagraph()
+          .setText(`Debug Log: ✅ <a href="${debugSpreadsheetUrl}">📊 Today's Debug Spreadsheet</a><br>All AI requests, responses, logic & errors logged automatically!`);
+        debugSection.addWidget(debugInfo);
+      } else {
+        const debugInfo = CardService.newTextParagraph()
+          .setText('Debug Log: ⚠️ Creating debug spreadsheet...');
+        debugSection.addWidget(debugInfo);
+      }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_error) {
+      const debugInfo = CardService.newTextParagraph()
+        .setText('Debug Log: ❌ Error creating debug spreadsheet');
+      debugSection.addWidget(debugInfo);
+    }
+    
+    card.addSection(debugSection);
     
     // DANGER ZONE - Factory Reset
     const dangerSection = CardService.newCardSection()
