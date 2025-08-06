@@ -143,6 +143,26 @@ function readModuleFile(modulePath) {
 }
 
 
+/**
+ * Extract TypeScript helper functions from compiled modules
+ */
+function extractHelpers(moduleContent) {
+  const helpers = {};
+  
+  // Pattern to match TypeScript helpers like __extends, __read, __spreadArray etc.
+  // They can end with either })(); or just };
+  const helperPattern = /var (__\w+) = \(this && this\.__\w+\) \|\| (?:\(function[\s\S]*?\}\)\(\);|function[\s\S]*?\n\};)/g;
+  
+  let match;
+  while ((match = helperPattern.exec(moduleContent)) !== null) {
+    const helperName = match[1];
+    const helperCode = match[0];
+    helpers[helperName] = helperCode;
+  }
+  
+  return helpers;
+}
+
 function createBundle() {
   const distDir = path.join(__dirname, 'dist');
   const srcDir = path.join(distDir, 'src');
@@ -201,6 +221,9 @@ function createBundle() {
     return;
   }
   
+  // Collect all TypeScript helpers from modules
+  const allHelpers = {};
+  
   // Read and combine all modules
   let modulesContent = '';
   
@@ -208,6 +231,10 @@ function createBundle() {
     const jsPath = path.join(modulesDir, `${moduleName}.js`);
     if (fs.existsSync(jsPath)) {
       const moduleContent = fs.readFileSync(jsPath, 'utf8');
+      
+      // Extract TypeScript helpers from this module
+      const moduleHelpers = extractHelpers(moduleContent);
+      Object.assign(allHelpers, moduleHelpers);
       
       try {
         // Parse the module content with Acorn
@@ -296,8 +323,20 @@ function createBundle() {
     .replace(/const\s+([^=]+)\s*=\s*require\([^)]+\);?/g, '')
     .trim();
   
-  // Combine all content
-  const finalContent = modulesContent + '\n\n' + mainContent;
+  // Combine all content with TypeScript helpers at the top
+  let helpersContent = '';
+  
+  // Add all collected TypeScript helpers
+  if (Object.keys(allHelpers).length > 0) {
+    helpersContent = '// TypeScript Runtime Helpers\n';
+    Object.keys(allHelpers).forEach(helperName => {
+      console.log(`📦 Including TypeScript helper: ${helperName}`);
+      helpersContent += allHelpers[helperName] + '\n';
+    });
+    helpersContent += '\n';
+  }
+  
+  const finalContent = helpersContent + modulesContent + '\n\n' + mainContent;
   
   // Add header
   const header = `/**
