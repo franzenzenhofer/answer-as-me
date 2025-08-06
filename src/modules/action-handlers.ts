@@ -495,10 +495,12 @@ namespace ActionHandlers {
    */
   export function showPromptManagement(_e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
     try {
+      // Redirect to Settings card instead of separate Prompt Management card
+      const settings = Config.getSettings();
       return CardService.newActionResponseBuilder()
         .setNavigation(
           CardService.newNavigation()
-            .pushCard(UI.buildPromptManagementCard())
+            .pushCard(UI.buildSettingsCard(settings))
         )
         .build();
     } catch (error) {
@@ -772,6 +774,53 @@ namespace ActionHandlers {
         .setNotification(
           CardService.newNotification()
             .setText('Factory reset failed - some data may remain')
+        )
+        .build();
+    }
+  }
+
+  /**
+   * Test API key with debugging information
+   */
+  export function testApiKey(_e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      AppLogger.info('API Key test initiated by user');
+      
+      const settings = Config.getSettings();
+      if (!settings.apiKey) {
+        return CardService.newActionResponseBuilder()
+          .setNotification(
+            CardService.newNotification()
+              .setText('❌ No API key found - please enter one first')
+          )
+          .build();
+      }
+
+      // Test the API key
+      const testResult = AI.testApiKey(settings.apiKey);
+      
+      if (testResult.success) {
+        return CardService.newActionResponseBuilder()
+          .setNotification(
+            CardService.newNotification()
+              .setText(`✅ API KEY WORKS! ${settings.apiKey.substring(0, 8)}...${settings.apiKey.slice(-4)} is valid`)
+          )
+          .build();
+      } else {
+        return CardService.newActionResponseBuilder()
+          .setNotification(
+            CardService.newNotification()
+              .setText(`❌ API KEY FAILED: ${testResult.error}`)
+          )
+          .build();
+      }
+      
+    } catch (error) {
+      AppLogger.error('Failed to test API key', error);
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText('❌ Test failed - check logs for details')
         )
         .build();
     }

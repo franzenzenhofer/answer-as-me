@@ -19,7 +19,29 @@ namespace AI {
   }
 
   /**
-   * Call Gemini API with enhanced features
+   * Test API key with simple request - SUPER DEBUGGABLE
+   */
+  export function testApiKey(apiKey: string): { success: boolean; error?: string } {
+    AppLogger.info('🧪 TESTING API KEY', {
+      key: `${apiKey.substring(0, 8)}...${apiKey.slice(-4)}`,
+      length: apiKey.length,
+      isValid: apiKey.startsWith('AIza'),
+      timestamp: new Date().toISOString()
+    });
+    
+    const testResult = callGeminiAPI('Say "API key works!"', apiKey);
+    
+    if (testResult.success) {
+      AppLogger.info('✅ API KEY TEST PASSED', testResult);
+      return { success: true };
+    } else {
+      AppLogger.error('❌ API KEY TEST FAILED', testResult);
+      return { success: false, error: testResult.error };
+    }
+  }
+
+  /**
+   * Call Gemini API with enhanced features - SUPER DEBUGGABLE
    * - Strict JSON mode
    * - Google Search grounding
    * - Code execution
@@ -94,16 +116,19 @@ namespace AI {
         method: Constants.API.HTTP_METHOD_POST as GoogleAppsScript.URL_Fetch.HttpMethod,
         contentType: Constants.API.CONTENT_TYPE_JSON,
         headers: {
-          [Constants.API.HEADER_API_KEY]: apiKey
+          'x-goog-api-key': apiKey
         },
         payload: JSON.stringify(payload),
         muteHttpExceptions: true
       };
       
-      AppLogger.info('Calling Gemini API', { 
+      AppLogger.info('🚀 Calling Gemini API', { 
+        url: Config.GEMINI_API_URL,
+        apiKey: `${apiKey.substring(0, 8)}...${apiKey.slice(-4)}`,
         jsonMode: options?.jsonMode,
         grounding: options?.enableGrounding,
-        codeExecution: options?.enableCodeExecution
+        codeExecution: options?.enableCodeExecution,
+        payloadSize: JSON.stringify(payload).length
       });
       
       // Use retry logic with timeout monitoring

@@ -138,3 +138,10 @@ function generateResponseWithFormality(e: GoogleAppsScript.Addons.EventObject): 
 function factoryReset(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
   return ActionHandlers.factoryReset(e);
 }
+
+/**
+ * Test API key with debugging information
+ */
+function testApiKey(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.testApiKey(e);
+}

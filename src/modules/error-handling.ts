@@ -11,11 +11,12 @@ namespace ErrorHandling {
   }
   
   /**
-   * Handle errors and return appropriate response
+   * Handle errors and return appropriate response - show Settings card with error info
    */
   export function handleError(error: any): GoogleAppsScript.Card_Service.Card {
     AppLogger.error('Error occurred', error);
     
+    // Log user-friendly error message for debugging
     let userMessage = 'An unexpected error occurred';
     
     if (error instanceof AppError) {
@@ -23,13 +24,17 @@ namespace ErrorHandling {
     } else if (error instanceof Error) {
       // Don't expose internal error messages to users
       if (error.message.includes('API')) {
-        userMessage = 'Failed to connect to AI service';
+        userMessage = 'Failed to connect to AI service - Check your API key in Settings';
       } else if (error.message.includes('Gmail')) {
-        userMessage = 'Failed to access email';
+        userMessage = 'Failed to access email - Try refreshing Gmail';
       }
     }
     
-    return UI.buildErrorCard(userMessage);
+    AppLogger.info('User-friendly error message', userMessage);
+    
+    // Return settings card - errors are handled via notifications in action handlers
+    const settings = Config.getSettings();
+    return UI.buildSettingsCard(settings);
   }
   
   /**

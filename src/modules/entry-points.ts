@@ -20,7 +20,9 @@ namespace EntryPoints {
       AppLogger.info('Gmail message opened');
       
       if (!e.gmail || !e.gmail.messageId) {
-        return UI.buildErrorCard('No email selected');
+        // No separate error card - return settings card
+        const settings = Config.getSettings();
+        return UI.buildSettingsCard(settings);
       }
       
       return buildMessageCard(e);
@@ -91,25 +93,26 @@ namespace EntryPoints {
   }
   
   /**
-   * Prompt Editor universal action
+   * Prompt Editor universal action - goes to Settings card
    */
   export function onPromptEditor(_e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
     try {
-      AppLogger.info('Prompt Editor opened');
-      return UI.buildPromptEditorCard();
+      AppLogger.info('Prompt Editor opened - redirecting to Settings');
+      const settings = Config.getSettings();
+      return UI.buildSettingsCard(settings);
     } catch (error) {
       return ErrorHandling.handleError(error);
     }
   }
   
   /**
-   * Style Analysis universal action
+   * Style Analysis universal action - goes to Settings card
    */
   export function onStyleAnalysis(_e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
     try {
-      AppLogger.info('Style Analysis opened');
-      const style = AI.getWritingStyle();
-      return UI.buildStyleAnalysisCard(style);
+      AppLogger.info('Style Analysis opened - redirecting to Settings');
+      const settings = Config.getSettings();
+      return UI.buildSettingsCard(settings);
     } catch (error) {
       return ErrorHandling.handleError(error);
     }

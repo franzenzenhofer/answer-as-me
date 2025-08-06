@@ -12,7 +12,7 @@ namespace Constants {
   export const API = {
     GEMINI_BASE_URL: 'https://generativelanguage.googleapis.com',
     GEMINI_VERSION: 'v1beta',
-    GEMINI_MODEL: 'gemini-2.0-flash-exp',
+    GEMINI_MODEL: 'gemini-2.5-flash',
     GEMINI_ENDPOINT: 'generateContent',
     
     // Temperature and token settings
