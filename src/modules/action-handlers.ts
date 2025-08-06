@@ -247,4 +247,86 @@ namespace ActionHandlers {
         .build();
     }
   }
+  
+  /**
+   * Learn from thread action
+   */
+  export function learnFromThread(e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      AppLogger.info('Learning from current thread');
+      
+      // Get current message and thread
+      const message = GmailService.getCurrentMessage(e);
+      if (!message) {
+        throw new ErrorHandling.AppError(
+          'No message found',
+          'NO_MESSAGE',
+          'Please select an email first'
+        );
+      }
+      
+      const thread = message.getThread();
+      const messages = thread.getMessages();
+      
+      // Check if thread has messages from the user
+      const userEmail = Session.getActiveUser().getEmail();
+      const hasUserMessages = messages.some(msg => 
+        msg.getFrom().toLowerCase().includes(userEmail.toLowerCase())
+      );
+      
+      if (!hasUserMessages) {
+        return CardService.newActionResponseBuilder()
+          .setNotification(
+            CardService.newNotification()
+              .setText('No messages from you in this thread')
+          )
+          .build();
+      }
+      
+      // Improve profile from thread
+      const improvementPrompt = UserProfile.getImprovementPrompt(thread);
+      const apiKey = Config.getProperty(Config.PROPERTY_KEYS.API_KEY);
+      const improveResponse = AI.callGeminiAPI(improvementPrompt, apiKey);
+      
+      if (improveResponse.success && improveResponse.response) {
+        try {
+          const improved = JSON.parse(improveResponse.response);
+          UserProfile.applyImprovements(improved);
+        } catch (e) {
+          AppLogger.error('Failed to parse profile improvements', e);
+        }
+      }
+      
+      // Also update writing style
+      const improvedStyle = StyleImprover.improveStyleFromThread(
+        AI.getWritingStyle(),
+        thread
+      );
+      
+      if (improvedStyle) {
+        Config.setProperty(Config.PROPERTY_KEYS.WRITING_STYLE, JSON.stringify(improvedStyle));
+        Config.setProperty(Config.PROPERTY_KEYS.LAST_ANALYSIS, new Date().toISOString());
+      }
+      
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText('Successfully learned from this thread!')
+        )
+        .setNavigation(
+          CardService.newNavigation()
+            .updateCard(EntryPoints.buildMessageCard(e))
+        )
+        .build();
+        
+    } catch (error) {
+      AppLogger.error('Failed to learn from thread', error);
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText('Failed to learn from thread')
+        )
+        .build();
+    }
+  }
 }

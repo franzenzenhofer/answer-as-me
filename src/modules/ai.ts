@@ -137,30 +137,18 @@ namespace AI {
       };
     }
     
-    // Build context string
-    const contextString = JSON.stringify({
-      from: context.from,
-      subject: context.subject,
-      body: Utils.truncate(context.body, Constants.EMAIL.MAX_RESPONSE_LENGTH / 5),
-      isReply: context.isReply,
-      threadLength: context.previousMessages?.length || 0
-    });
+    // Get user profile for assistant persona
+    const userProfile = UserProfile.getUserProfile();
     
-    // Build style string
-    const styleString = JSON.stringify({
-      greeting: style.greetings[0] || 'Hi',
-      closing: style.closings[0] || 'Best regards',
-      formalityLevel: settings.formalityLevel,
-      responseLength: settings.responseLength
-    });
+    // Build improved prompt with assistant identity
+    const prompt = Prompts.getResponseGenerationPrompt(
+      context,
+      style,
+      userProfile,
+      settings.customInstructions
+    );
     
-    // Build prompt
-    const prompt = Config.PROMPTS.RESPONSE_GENERATION
-      .replace('{style}', styleString)
-      .replace('{context}', contextString)
-      .replace('{instructions}', settings.customInstructions || 'None');
-    
-    AppLogger.info('Generating response with AI');
+    AppLogger.info('Generating response as email assistant');
     const response = callGeminiAPI(prompt, apiKey);
     
     if (response.success && response.response) {

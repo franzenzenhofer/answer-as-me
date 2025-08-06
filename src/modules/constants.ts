@@ -179,6 +179,7 @@ namespace Constants {
     // Cache keys
     WRITING_STYLE: 'AAM_WRITING_STYLE',
     LAST_ANALYSIS: 'AAM_LAST_ANALYSIS',
+    USER_PROFILE: 'AAM_USER_PROFILE',
     
     // Cache duration
     STYLE_CACHE_DAYS: 7
