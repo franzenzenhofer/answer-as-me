@@ -193,6 +193,30 @@ namespace ActionHandlers {
       // Save settings
       Config.saveSettings(updates);
       
+      // Auto-create prompt documents when API key is first set
+      if (updates.apiKey && !PropertyManager.getProperty(Constants.PROPERTIES.PROMPTS_DOC_ID, 'script')) {
+        try {
+          AppLogger.info('First-time API key setup - creating prompt documents');
+          
+          // Create all prompt documents
+          const promptTypes = ['main', 'style', 'profile'];
+          for (const promptType of promptTypes) {
+            GoogleDocsPrompts.getOrCreatePromptDocument(promptType);
+            AppLogger.info(`Created ${promptType} prompt document`);
+          }
+          
+          return CardService.newActionResponseBuilder()
+            .setNotification(
+              CardService.newNotification()
+                .setText('Settings saved! Prompt documents created.')
+            )
+            .build();
+        } catch (error) {
+          AppLogger.warn('Failed to auto-create prompt documents', error);
+          // Continue with normal save response
+        }
+      }
+      
       return CardService.newActionResponseBuilder()
         .setNotification(
           CardService.newNotification()
@@ -571,6 +595,183 @@ namespace ActionHandlers {
         .setNotification(
           CardService.newNotification()
             .setText('Failed to open prompts document. Please check permissions.')
+        )
+        .build();
+    }
+  }
+
+  /**
+   * Generate response with specific formality level
+   */
+  export function generateResponseWithFormality(
+    e: Types.ExtendedEventObject
+  ): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      AppLogger.info('Generating response with specific formality');
+      
+      // Get formality level from parameters
+      const formality = e.parameters?.formality;
+      if (!formality) {
+        throw new Error('No formality level specified');
+      }
+
+      // Get settings and temporarily override formality
+      const settings = Config.getSettings();
+      if (!settings.apiKey) {
+        return CardService.newActionResponseBuilder()
+          .setNotification(
+            CardService.newNotification()
+              .setText('Please set your API key first')
+          )
+          .setNavigation(
+            CardService.newNavigation()
+              .pushCard(UI.buildSettingsCard(settings))
+          )
+          .build();
+      }
+      
+      // Override formality level
+      const formalityLevel = parseInt(formality);
+      const adjustedSettings = { ...settings, formalityLevel };
+      
+      // Get current message
+      const message = GmailService.getCurrentMessage(e);
+      if (!message) {
+        throw new ErrorHandling.AppError(
+          'No message found',
+          'NO_MESSAGE',
+          'Please select an email first'
+        );
+      }
+      
+      // Get email context
+      const context = GmailService.getEmailContext(message);
+      
+      // Get writing style
+      const style = AI.getWritingStyle();
+      if (!style) {
+        throw new ErrorHandling.AppError(
+          'Unable to analyze writing style',
+          'STYLE_ERROR',
+          'Please ensure you have sent emails from this account'
+        );
+      }
+      
+      // Get user profile
+      const userProfile = UserProfile.getUserProfile();
+      
+      // Generate response with adjusted formality
+      const aiResponse = AI.generateEmailResponse(context, style, userProfile, adjustedSettings.apiKey);
+      
+      if (!aiResponse.success || !aiResponse.response) {
+        let userMessage = 'Failed to generate response';
+        if (aiResponse.error) {
+          userMessage = aiResponse.error;
+        }
+        throw new ErrorHandling.AppError(
+          'Failed to generate response',
+          'AI_ERROR',
+          userMessage
+        );
+      }
+      
+      // Create draft
+      const draft = GmailService.createDraftReply(message, aiResponse.response);
+      
+      // Show success card
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText(`Response generated with ${Constants.STYLE.FORMALITY_LABELS[formalityLevel - 1]} tone!`)
+        )
+        .setNavigation(
+          CardService.newNavigation()
+            .pushCard(UI.buildResponseCard(aiResponse.response, draft.getId()))
+        )
+        .build();
+        
+    } catch (error) {
+      AppLogger.error('Failed to generate response with formality', error);
+      
+      let errorMessage = 'Failed to generate response';
+      if (error instanceof ErrorHandling.AppError) {
+        errorMessage = error.userMessage || error.message;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText(errorMessage)
+        )
+        .build();
+    }
+  }
+
+  /**
+   * Factory reset - delete ALL data and start completely fresh
+   */
+  export function factoryReset(_e: Types.ExtendedEventObject): GoogleAppsScript.Card_Service.ActionResponse {
+    try {
+      AppLogger.info('FACTORY RESET INITIATED - Deleting all user data');
+      
+      // Delete all user properties
+      const userProperties = PropertiesService.getUserProperties();
+      const userKeys = userProperties.getKeys();
+      for (const key of userKeys) {
+        userProperties.deleteProperty(key);
+      }
+      
+      // Delete all script properties
+      const scriptProperties = PropertiesService.getScriptProperties();
+      const scriptKeys = scriptProperties.getKeys();
+      for (const key of scriptKeys) {
+        scriptProperties.deleteProperty(key);
+      }
+      
+      // Delete all documents if they exist
+      try {
+        // Get prompt documents
+        const promptTypes = ['main', 'style', 'profile'];
+        for (const promptType of promptTypes) {
+          try {
+            const docId = GoogleDocsPrompts.getOrCreatePromptDocument(promptType);
+            if (docId) {
+              DriveApp.getFileById(docId).setTrashed(true);
+              AppLogger.info(`Deleted prompt document: ${promptType}`);
+            }
+          } catch (error) {
+            // Document doesn't exist or can't be deleted - continue
+            AppLogger.info(`Could not delete ${promptType} document: ${error}`);
+          }
+        }
+      } catch (error) {
+        AppLogger.warn('Error during document cleanup', error);
+      }
+      
+      AppLogger.info('FACTORY RESET COMPLETED - All data deleted');
+      
+      // Return to fresh settings card
+      const freshSettings = Config.getSettings(); // Will be empty now
+      
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText('🔴 FACTORY RESET COMPLETE - All data deleted!')
+        )
+        .setNavigation(
+          CardService.newNavigation()
+            .updateCard(UI.buildSettingsCard(freshSettings))
+        )
+        .build();
+        
+    } catch (error) {
+      AppLogger.error('Failed during factory reset', error);
+      return CardService.newActionResponseBuilder()
+        .setNotification(
+          CardService.newNotification()
+            .setText('Factory reset failed - some data may remain')
         )
         .build();
     }

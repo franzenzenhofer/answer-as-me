@@ -124,3 +124,17 @@ function onViewPromptsDoc(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScr
 function onStyleAnalysis(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
   return EntryPoints.onStyleAnalysis(e);
 }
+
+/**
+ * Generate response with specific formality
+ */
+function generateResponseWithFormality(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.generateResponseWithFormality(e);
+}
+
+/**
+ * Factory reset - delete all data and start fresh
+ */
+function factoryReset(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.ActionResponse {
+  return ActionHandlers.factoryReset(e);
+}

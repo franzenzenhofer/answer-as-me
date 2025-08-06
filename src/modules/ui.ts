@@ -1,233 +1,266 @@
 namespace UI {
   /**
-   * Build the main card - COMPLETE AND POWERFUL
+   * Build the main card - Shows settings if API key not set, otherwise overview
    */
   export function buildMainCard(settings: Types.Config): GoogleAppsScript.Card_Service.Card {
-    const card = CardService.newCardBuilder();
-    card.setHeader(buildHeader());
-    
-    // Show everything users need
+    // If no API key, show settings card
     if (!settings.apiKey) {
-      card.addSection(buildSetupSection());
-    } else {
-      card.addSection(buildStatusSection(settings));
+      return buildSettingsCard(settings);
     }
     
-    card.addSection(buildQuickLinksSection());
-    card.addSection(buildConfigSection(settings));
-    card.addSection(buildAdvancedSection(settings));
-    card.addSection(buildActionSection());
-    
-    return card.build();
+    // Otherwise show overview card
+    return buildOverviewCard(settings);
   }
   
   /**
-   * Build header
+   * CARD 2: Overview Mode - Main dashboard
    */
-  function buildHeader(): GoogleAppsScript.Card_Service.CardHeader {
-    const deployInfo = Constants.METADATA.DEPLOY_TIME ? 
-      ` - Deployed: ${Constants.METADATA.DEPLOY_TIME}` : '';
-    
-    return CardService.newCardHeader()
-      .setTitle(Constants.METADATA.APP_NAME)
-      .setSubtitle(`v${Constants.METADATA.APP_VERSION}${deployInfo}`)
-      .setImageStyle(CardService.ImageStyle.CIRCLE)
-      .setImageUrl(Constants.UI.ICON_MAIN);
-  }
-  
-  
-  /**
-   * Build setup section for new users
-   */
-  function buildSetupSection(): GoogleAppsScript.Card_Service.CardSection {
-    const section = CardService.newCardSection()
-      .setHeader('🚀 Quick Setup');
-    
-    section.addWidget(
-      CardService.newTextParagraph()
-        .setText('<b>Welcome! Let\'s get started:</b>')
+  export function buildOverviewCard(settings: Types.Config): GoogleAppsScript.Card_Service.Card {
+    const card = CardService.newCardBuilder();
+    card.setHeader(
+      CardService.newCardHeader()
+        .setTitle('📧 Answer As Me')
+        .setSubtitle('Overview Dashboard')
+        .setImageStyle(CardService.ImageStyle.CIRCLE)
+        .setImageUrl(Constants.UI.ICON_MAIN)
     );
     
-    // Step 1: Get API Key
-    const getKeyButton = CardService.newTextButton()
-      .setText('1️⃣ Get Free API Key')
-      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-      .setOpenLink(
-        CardService.newOpenLink()
-          .setUrl('https://makersuite.google.com/app/apikey')
-          .setOpenAs(CardService.OpenAs.FULL_SIZE)
-      );
-    section.addWidget(getKeyButton);
+    // Quick status
+    const statusSection = CardService.newCardSection()
+      .setHeader('<b>📊 Status</b>');
     
-    section.addWidget(
-      CardService.newTextParagraph()
-        .setText('2️⃣ Enter your API key below and click Save')
-    );
-    
-    return section;
-  }
-  
-  /**
-   * Build status section for existing users
-   */
-  function buildStatusSection(settings: Types.Config): GoogleAppsScript.Card_Service.CardSection {
-    const section = CardService.newCardSection()
-      .setHeader('📊 Status');
-    
-    // API Key status
-    const apiStatus = CardService.newDecoratedText()
-      .setText(settings.apiKey ? '✅ Connected' : '❌ Not Set')
-      .setTopLabel('API Key')
-      .setIcon(CardService.Icon.STAR);
-    section.addWidget(apiStatus);
-    
-    // Style analysis status
     const hasStyle = PropertyManager.getProperty(Constants.PROPERTIES.WRITING_STYLE, 'user');
-    const styleStatus = CardService.newDecoratedText()
-      .setText(hasStyle ? '✅ Analyzed' : '⏳ Pending')
-      .setTopLabel('Writing Style')
-      .setIcon(CardService.Icon.PERSON);
-    section.addWidget(styleStatus);
-    
-    // Prompts status
     const promptsDocId = PropertyManager.getProperty(Constants.PROPERTIES.PROMPTS_DOC_ID, 'script');
-    const promptsStatus = CardService.newDecoratedText()
-      .setText(promptsDocId ? '✅ Configured' : '⏳ Default')
-      .setTopLabel('Prompts')
-      .setIcon(CardService.Icon.DESCRIPTION);
-    section.addWidget(promptsStatus);
     
-    return section;
-  }
-  
-  /**
-   * Build quick links section
-   */
-  function buildQuickLinksSection(): GoogleAppsScript.Card_Service.CardSection {
-    const section = CardService.newCardSection()
-      .setHeader('Quick Access');
-    
-    // Manage Prompts button
-    const promptsButton = CardService.newTextButton()
-      .setText('📝 Manage Prompts')
-      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-      .setOnClickAction(
-        CardService.newAction()
-          .setFunctionName('onPromptEditor')
+    // Combined status display
+    const statusGrid = CardService.newButtonSet()
+      .addButton(
+        CardService.newTextButton()
+          .setText(`🔑 ${settings.apiKey ? '✅' : '❌'}`)
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onSettings')
+          )
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText(`✍️ ${hasStyle ? '✅' : '⏳'}`)
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onStyleAnalysis')
+          )
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText(`📄 ${promptsDocId ? '✅' : '⏳'}`)
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onPromptEditor')
+          )
       );
-    section.addWidget(promptsButton);
     
-    // View Style Analysis button
-    const styleButton = CardService.newTextButton()
-      .setText('✍️ View Your Style')
-      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-      .setOnClickAction(
-        CardService.newAction()
-          .setFunctionName('onStyleAnalysis')
-      );
-    section.addWidget(styleButton);
+    statusSection.addWidget(statusGrid);
     
-    // Open Prompts Document button
-    const docsButton = CardService.newTextButton()
-      .setText('📄 Open Prompts Doc')
-      .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
-      .setOnClickAction(
-        CardService.newAction()
-          .setFunctionName('onViewPromptsDoc')
-      );
-    section.addWidget(docsButton);
+    const statusLabels = CardService.newTextParagraph()
+      .setText('API Key | Style | Prompts');
+    statusSection.addWidget(statusLabels);
     
-    return section;
-  }
-  
-  /**
-   * Build configuration section
-   */
-  function buildConfigSection(settings: Types.Config): GoogleAppsScript.Card_Service.CardSection {
-    const section = CardService.newCardSection()
-      .setHeader('Configuration');
+    card.addSection(statusSection);
     
-    // API Key input
-    const apiKeyInput = CardService.newTextInput()
-      .setFieldName(Constants.UI.FIELD_API_KEY)
-      .setTitle('Gemini API Key')
-      .setValue(settings.apiKey ? `••••••••${  settings.apiKey.slice(-4)}` : '')
-      .setHint('Your Gemini API key');
+    // Main Actions
+    const actionsSection = CardService.newCardSection()
+      .setHeader('<b>🚀 Quick Actions</b>');
     
-    section.addWidget(apiKeyInput);
-    
-    return section;
-  }
-  
-  /**
-   * Build advanced section with all power features
-   */
-  function buildAdvancedSection(settings: Types.Config): GoogleAppsScript.Card_Service.CardSection {
-    const section = CardService.newCardSection()
-      .setHeader('⚙️ Advanced');
-    
-    // Response length
-    const lengthDropdown = CardService.newSelectionInput()
-      .setFieldName('responseLength')
-      .setTitle('Response Length')
-      .setType(CardService.SelectionInputType.DROPDOWN)
-      .addItem('Short (1-2 sentences)', 'short', settings.responseLength === 'short')
-      .addItem('Medium (3-5 sentences)', 'medium', settings.responseLength === 'medium')
-      .addItem('Long (6+ sentences)', 'long', settings.responseLength === 'long');
-    section.addWidget(lengthDropdown);
-    
-    // Custom instructions
-    const instructionsInput = CardService.newTextInput()
-      .setFieldName('customInstructions')
-      .setTitle('Custom Instructions')
-      .setValue(settings.customInstructions || '')
-      .setHint('Special instructions for all responses')
-      .setMultiline(true);
-    section.addWidget(instructionsInput);
-    
-    // Signature
-    const signatureInput = CardService.newTextInput()
-      .setFieldName(Constants.UI.FIELD_SIGNATURE)
-      .setTitle('Email Signature')
-      .setValue(settings.signature)
-      .setHint('Your email signature')
-      .setMultiline(true);
-    section.addWidget(signatureInput);
-    
-    return section;
-  }
-  
-  /**
-   * Build action section
-   */
-  function buildActionSection(): GoogleAppsScript.Card_Service.CardSection {
-    const section = CardService.newCardSection();
-    
-    // Generate response button
+    // Generate response button - most important
     const generateButton = CardService.newTextButton()
-      .setText(Constants.UI.BUTTON_GENERATE)
+      .setText('🎯 Generate Response')
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('generateResponse')
-      )
-      .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
-    
-    // Save settings button
-    const saveButton = CardService.newTextButton()
-      .setText(Constants.UI.BUTTON_SAVE_SETTINGS)
-      .setOnClickAction(
-        CardService.newAction()
-          .setFunctionName('saveSettings')
       );
     
-    const buttonSet = CardService.newButtonSet()
-      .addButton(generateButton)
-      .addButton(saveButton);
+    actionsSection.addWidget(generateButton);
     
-    section.addWidget(buttonSet);
+    // Quick access grid
+    const quickActions = CardService.newButtonSet()
+      .addButton(
+        CardService.newTextButton()
+          .setText('⚙️ Settings')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onSettings')
+          )
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText('📝 Prompts')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onPromptEditor')
+          )
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText('❓ Help')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onHelp')
+          )
+      );
     
-    return section;
+    actionsSection.addWidget(quickActions);
+    
+    card.addSection(actionsSection);
+    
+    // Recent activity or tips
+    const tipsSection = CardService.newCardSection()
+      .setHeader('<b>💡 Tips</b>');
+    
+    const tipsText = CardService.newTextParagraph()
+      .setText(
+        '• <b>Open any email</b> and click "Generate Response"<br>' +
+        '• <b>Customize prompts</b> in Google Docs for better results<br>' +
+        '• <b>Style analysis</b> improves with more sent emails<br>' +
+        '• <b>All drafts</b> are saved - review before sending!'
+      );
+    
+    tipsSection.addWidget(tipsText);
+    card.addSection(tipsSection);
+    
+    return card.build();
   }
+
+  /**
+   * CARD 3: Thread Mode - Email-specific context
+   */
+  export function buildThreadCard(
+    settings: Types.Config,
+    emailContext?: any
+  ): GoogleAppsScript.Card_Service.Card {
+    const card = CardService.newCardBuilder();
+    card.setHeader(
+      CardService.newCardHeader()
+        .setTitle('📬 Thread Context')
+        .setSubtitle('AI response for this email')
+        .setImageStyle(CardService.ImageStyle.CIRCLE)
+        .setImageUrl(Constants.UI.ICON_MAIN)
+    );
+    
+    // Check API key first
+    if (!settings.apiKey) {
+      const setupSection = CardService.newCardSection();
+      setupSection.addWidget(
+        CardService.newTextParagraph()
+          .setText('⚠️ <b>API Key Required</b><br><br>Click Settings to add your API key.')
+      );
+      
+      const settingsButton = CardService.newTextButton()
+        .setText('Go to Settings')
+        .setOnClickAction(
+          CardService.newAction()
+            .setFunctionName('onSettings')
+        )
+        .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
+      setupSection.addWidget(settingsButton);
+      
+      card.addSection(setupSection);
+      return card.build();
+    }
+    
+    // Email context info
+    if (emailContext) {
+      const contextSection = CardService.newCardSection()
+        .setHeader('<b>📧 Current Email</b>');
+      
+      const emailInfo = CardService.newDecoratedText()
+        .setText(emailContext.subject || 'No Subject')
+        .setTopLabel('Subject')
+        .setBottomLabel(`From: ${emailContext.sender || 'Unknown'}`)
+        .setIcon(CardService.Icon.EMAIL);
+      
+      contextSection.addWidget(emailInfo);
+      card.addSection(contextSection);
+    }
+    
+    // Main generate button
+    const generateSection = CardService.newCardSection()
+      .setHeader('<b>🎯 AI Response</b>');
+    
+    const generateButton = CardService.newTextButton()
+      .setText('Generate Personalized Reply')
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('generateResponse')
+      );
+    
+    generateSection.addWidget(generateButton);
+    
+    // Quick formality adjustment
+    const formalitySection = CardService.newCardSection()
+      .setHeader('<b>🎭 Quick Adjustments</b>');
+    
+    const formalityButtons = CardService.newButtonSet()
+      .addButton(
+        CardService.newTextButton()
+          .setText('😊 Casual')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('generateResponseWithFormality')
+              .setParameters({ formality: '1' })
+          )
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText('💼 Formal')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('generateResponseWithFormality')
+              .setParameters({ formality: '5' })
+          )
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText('🔄 Auto')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('generateResponse')
+          )
+      );
+    
+    formalitySection.addWidget(formalityButtons);
+    
+    card.addSection(generateSection);
+    card.addSection(formalitySection);
+    
+    // Navigation to other cards
+    const navSection = CardService.newCardSection();
+    
+    const navButtons = CardService.newButtonSet()
+      .addButton(
+        CardService.newTextButton()
+          .setText('📊 Overview')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onHomepage')
+          )
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText('⚙️ Settings')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onSettings')
+          )
+      );
+    
+    navSection.addWidget(navButtons);
+    card.addSection(navSection);
+    
+    return card.build();
+  }
+
   
   /**
    * Build response preview card
@@ -467,34 +500,50 @@ namespace UI {
   }
 
   /**
-   * Build settings card with prompt management
+   * CARD 1: Settings - ALL configuration in one place
    */
   export function buildSettingsCard(settings: Types.Config): GoogleAppsScript.Card_Service.Card {
     const card = CardService.newCardBuilder();
     card.setHeader(
       CardService.newCardHeader()
-        .setTitle('Settings')
-        .setSubtitle('Configure your preferences')
+        .setTitle('⚙️ Settings')
+        .setSubtitle('All configuration in one place')
         .setImageStyle(CardService.ImageStyle.SQUARE)
         .setImageUrl(Constants.UI.ICON_MAIN)
     );
     
-    // API Key section
+    // API Key section - NEVER HIDE IT!
     const apiSection = CardService.newCardSection()
-      .setHeader('<b>API Configuration</b>');
+      .setHeader('<b>🔑 API Configuration</b>');
     
     const apiKeyInput = CardService.newTextInput()
       .setFieldName('apiKey')
       .setTitle('Gemini API Key')
-      .setValue(settings.apiKey ? `••••••${  settings.apiKey.slice(-4)}` : '')
-      .setHint('Your Google Gemini API key');
+      .setValue(settings.apiKey || '')  // NEVER HIDE - show full key!
+      .setHint('Your Google Gemini API key - get one at makersuite.google.com');
     
     apiSection.addWidget(apiKeyInput);
     
-    // Response settings section
-    const responseSection = CardService.newCardSection()
-      .setHeader('<b>Response Settings</b>');
+    // Quick setup help if no API key
+    if (!settings.apiKey) {
+      const getKeyButton = CardService.newTextButton()
+        .setText('🔗 Get Free API Key')
+        .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
+        .setOpenLink(
+          CardService.newOpenLink()
+            .setUrl('https://makersuite.google.com/app/apikey')
+            .setOpenAs(CardService.OpenAs.FULL_SIZE)
+        );
+      apiSection.addWidget(getKeyButton);
+    }
     
+    card.addSection(apiSection);
+    
+    // Response Configuration
+    const responseSection = CardService.newCardSection()
+      .setHeader('<b>📝 Response Configuration</b>');
+    
+    // Formality level
     const formalityDropdown = CardService.newSelectionInput()
       .setFieldName('formalityLevel')
       .setTitle('Default Formality')
@@ -506,6 +555,16 @@ namespace UI {
     });
     
     responseSection.addWidget(formalityDropdown);
+    
+    // Response length
+    const lengthDropdown = CardService.newSelectionInput()
+      .setFieldName('responseLength')
+      .setTitle('Response Length')
+      .setType(CardService.SelectionInputType.DROPDOWN)
+      .addItem('Short (1-2 sentences)', 'short', settings.responseLength === 'short')
+      .addItem('Medium (3-5 sentences)', 'medium', settings.responseLength === 'medium')
+      .addItem('Long (6+ sentences)', 'long', settings.responseLength === 'long');
+    responseSection.addWidget(lengthDropdown);
     
     // Custom instructions
     const instructionsInput = CardService.newTextInput()
@@ -527,12 +586,78 @@ namespace UI {
     
     responseSection.addWidget(signatureInput);
     
-    card.addSection(apiSection);
     card.addSection(responseSection);
+    
+    // Prompts Management
+    const promptsSection = CardService.newCardSection()
+      .setHeader('<b>📄 Prompts Management</b>');
+    
+    // Status info
+    const promptsDocId = PropertyManager.getProperty(Constants.PROPERTIES.PROMPTS_DOC_ID, 'script');
+    const hasStyle = PropertyManager.getProperty(Constants.PROPERTIES.WRITING_STYLE, 'user');
+    
+    const statusText = CardService.newTextParagraph()
+      .setText(`Prompts: ${promptsDocId ? '✅ Custom' : '⏳ Default'} | Style: ${hasStyle ? '✅ Analyzed' : '⏳ Pending'}`);
+    promptsSection.addWidget(statusText);
+    
+    // Quick actions
+    const promptButtons = CardService.newButtonSet()
+      .addButton(
+        CardService.newTextButton()
+          .setText('📝 Edit Prompts')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onPromptEditor')
+          )
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText('✍️ View Style')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('onStyleAnalysis')
+          )
+      );
+    
+    promptsSection.addWidget(promptButtons);
+    
+    // Direct link to prompts doc if exists
+    if (promptsDocId) {
+      try {
+        const doc = DocumentApp.openById(promptsDocId);
+        const url = doc.getUrl();
+        const docLink = CardService.newTextParagraph()
+          .setText(`<a href="${url}">📄 Open Prompts Doc</a> (changes apply immediately)`);
+        promptsSection.addWidget(docLink);
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+    
+    card.addSection(promptsSection);
+    
+    // DANGER ZONE - Factory Reset
+    const dangerSection = CardService.newCardSection()
+      .setHeader('<b>🚨 Danger Zone</b>');
+    
+    const resetWarning = CardService.newTextParagraph()
+      .setText('⚠️ Factory reset will delete ALL data: API key, prompts, style analysis, settings. This cannot be undone!');
+    dangerSection.addWidget(resetWarning);
+    
+    const factoryResetButton = CardService.newTextButton()
+      .setText('🔴 FACTORY RESET')
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      .setOnClickAction(
+        CardService.newAction()
+          .setFunctionName('factoryReset')
+      );
+    
+    dangerSection.addWidget(factoryResetButton);
+    card.addSection(dangerSection);
     
     // Save button
     const saveButton = CardService.newTextButton()
-      .setText('Save Settings')
+      .setText('💾 Save All Settings')
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
       .setOnClickAction(
         CardService.newAction()
@@ -541,67 +666,6 @@ namespace UI {
     
     const buttonSection = CardService.newCardSection();
     buttonSection.addWidget(saveButton);
-    
-    // Prompt management link
-    const promptLink = CardService.newTextButton()
-      .setText('Manage Prompts')
-      .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
-      .setOnClickAction(
-        CardService.newAction()
-          .setFunctionName('showPromptManagement')
-      );
-    
-    buttonSection.addWidget(promptLink);
-    
-    // Prompts document section
-    const promptsDocSection = CardService.newCardSection()
-      .setHeader('<b>Prompts Document</b>');
-    
-    // Get current prompts doc ID
-    const promptsDocId = PropertyManager.getProperty(Constants.PROPERTIES.PROMPTS_DOC_ID, 'script');
-    if (promptsDocId) {
-      try {
-        const doc = DocumentApp.openById(promptsDocId);
-        const url = doc.getUrl();
-        
-        const docInfo = CardService.newDecoratedText()
-          .setText(doc.getName())
-          .setTopLabel('Current Prompts Document')
-          .setBottomLabel(`ID: ${promptsDocId}`)
-          .setIcon(CardService.Icon.DESCRIPTION);
-        promptsDocSection.addWidget(docInfo);
-        
-        // Direct link to document
-        const docLink = CardService.newTextParagraph()
-          .setText(`<a href="${url}">📄 Open in Google Docs</a>`);
-        promptsDocSection.addWidget(docLink);
-        
-        const editDocsButton = CardService.newTextButton()
-          .setText('📝 Edit Prompts')
-          .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('onViewPromptsDoc')
-          );
-        promptsDocSection.addWidget(editDocsButton);
-        
-        // Info about fresh loading
-        const infoText = CardService.newTextParagraph()
-          .setText('<i>✅ Prompts are loaded fresh from this document on every AI request</i>');
-        promptsDocSection.addWidget(infoText);
-      } catch (error) {
-        AppLogger.error('Failed to load prompt document info', error);
-        const errorText = CardService.newTextParagraph()
-          .setText('Error loading prompt document. Click "Manage Prompts" to recreate.');
-        promptsDocSection.addWidget(errorText);
-      }
-    } else {
-      const noDocText = CardService.newTextParagraph()
-        .setText('No prompts document created yet. Click "Manage Prompts" to create one.');
-      promptsDocSection.addWidget(noDocText);
-    }
-    
-    card.addSection(promptsDocSection);
     card.addSection(buttonSection);
     
     return card.build();

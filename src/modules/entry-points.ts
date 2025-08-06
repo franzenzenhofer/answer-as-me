@@ -31,108 +31,26 @@ namespace EntryPoints {
   }
   
   /**
-   * Build message card with COMPLETE actions
+   * Build thread-specific card - CARD 3
    */
   export function buildMessageCard(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
-    const card = CardService.newCardBuilder();
     const settings = Config.getSettings();
     
-    const header = CardService.newCardHeader()
-      .setTitle('✉️ Answer As Me')
-      .setSubtitle(settings.apiKey ? 'Ready to generate' : 'Setup required');
-    
-    card.setHeader(header);
-    
-    // Check API key first
-    if (!settings.apiKey) {
-      const setupSection = CardService.newCardSection();
-      setupSection.addWidget(
-        CardService.newTextParagraph()
-          .setText('⚠️ <b>API Key Required</b><br><br>Click Settings to add your API key.')
-      );
-      
-      const settingsButton = CardService.newTextButton()
-        .setText('Go to Settings')
-        .setOnClickAction(
-          CardService.newAction()
-            .setFunctionName('onSettings')
-        )
-        .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
-      setupSection.addWidget(settingsButton);
-      
-      card.addSection(setupSection);
-      return card.build();
-    }
-    
-    // Main actions section
-    const mainSection = CardService.newCardSection();
-    
-    // BIG generate button
-    const generateButton = CardService.newTextButton()
-      .setText('🚀 Generate Response')
-      .setOnClickAction(
-        CardService.newAction()
-          .setFunctionName('generateResponse')
-      )
-      .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
-    
-    mainSection.addWidget(generateButton);
-    
-    // Check if thread has messages from user for learning option
+    // Get email context for thread card
+    let emailContext = null;
     try {
       const message = GmailService.getCurrentMessage(e);
       if (message) {
-        const thread = message.getThread();
-        const messages = thread.getMessages();
-        const userEmail = Session.getActiveUser().getEmail();
-        const hasUserMessages = messages.some(msg => 
-          msg.getFrom().toLowerCase().includes(userEmail.toLowerCase())
-        );
-        
-        if (hasUserMessages) {
-          const learnSection = CardService.newCardSection()
-            .setHeader('Improve Assistant');
-          
-          learnSection.addWidget(
-            CardService.newTextParagraph()
-              .setText('This thread contains your messages. I can learn from your communication style here.')
-          );
-          
-          const learnButton = CardService.newTextButton()
-            .setText('Learn from this Thread')
-            .setOnClickAction(
-              CardService.newAction()
-                .setFunctionName('learnFromThread')
-            )
-            .setTextButtonStyle(CardService.TextButtonStyle.TEXT);
-          
-          learnSection.addWidget(learnButton);
-          card.addSection(mainSection);
-          card.addSection(learnSection);
-        } else {
-          card.addSection(mainSection);
-        }
-      } else {
-        card.addSection(mainSection);
+        emailContext = {
+          subject: message.getSubject(),
+          sender: message.getFrom()
+        };
       }
     } catch (error) {
-      AppLogger.warn('Could not check thread for learning', error);
-      card.addSection(mainSection);
+      AppLogger.warn('Could not get email context', error);
     }
     
-    // Settings shortcut
-    const settingsSection = CardService.newCardSection();
-    const settingsButton = CardService.newTextButton()
-      .setText('Settings')
-      .setOnClickAction(
-        CardService.newAction()
-          .setFunctionName('onHomepage')
-      );
-    
-    settingsSection.addWidget(settingsButton);
-    card.addSection(settingsSection);
-    
-    return card.build();
+    return UI.buildThreadCard(settings, emailContext);
   }
   
   /**
@@ -148,12 +66,13 @@ namespace EntryPoints {
   }
   
   /**
-   * Settings universal action
+   * Settings universal action - Always show CARD 1 (Settings)
    */
   export function onSettings(_e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
     try {
       AppLogger.info('Settings opened');
-      return UI.buildMainCard(Config.getSettings());
+      const settings = Config.getSettings();
+      return UI.buildSettingsCard(settings);
     } catch (error) {
       return ErrorHandling.handleError(error);
     }
