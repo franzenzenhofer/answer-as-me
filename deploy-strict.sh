@@ -194,12 +194,16 @@ echo -e "\n${YELLOW}9.2. Verifying deployment structure...${NC}"
 # List all files to debug
 echo "Files in deployed project:"
 ls -la
+echo ""
+echo "Checking dist directory:"
+ls -la dist/ 2>/dev/null || echo "No dist directory"
 
 # Google Apps Script may return files with different extensions
-CODE_FILES=$(ls Code.* 2>/dev/null | wc -l | tr -d ' ')
-GS_FILES=$(ls *.gs 2>/dev/null | wc -l | tr -d ' ')
-JS_FILES=$(ls *.js 2>/dev/null | wc -l | tr -d ' ')
-MANIFEST_FILES=$(ls appsscript.json 2>/dev/null | wc -l | tr -d ' ')
+# Check both current directory and dist subdirectory
+CODE_FILES=$(ls Code.* dist/Code.* 2>/dev/null | wc -l | tr -d ' ')
+GS_FILES=$(ls *.gs dist/*.gs 2>/dev/null | wc -l | tr -d ' ')
+JS_FILES=$(ls *.js dist/*.js 2>/dev/null | wc -l | tr -d ' ')
+MANIFEST_FILES=$(ls appsscript.json dist/appsscript.json 2>/dev/null | wc -l | tr -d ' ')
 
 # Total code files (any of .gs, .js, or Code.*)
 TOTAL_CODE_FILES=$((CODE_FILES + GS_FILES + JS_FILES))
@@ -229,16 +233,21 @@ echo -e "${GREEN}✅ File structure verified: 1 Code file, 1 manifest file${NC}"
 echo -e "\n${YELLOW}9.3. Verifying version number...${NC}"
 # Find the actual code file (could be .gs, .js, or Code.*)
 CODE_FILE=""
+# Check current directory first
 if [ -f "Code.gs" ]; then
   CODE_FILE="Code.gs"
 elif [ -f "Code.js" ]; then
   CODE_FILE="Code.js"
-elif [ $GS_FILES -eq 1 ]; then
-  CODE_FILE=$(ls *.gs | head -1)
-elif [ $JS_FILES -eq 1 ]; then
-  CODE_FILE=$(ls *.js | head -1)
+elif [ -f "dist/Code.gs" ]; then
+  CODE_FILE="dist/Code.gs"
+elif [ -f "dist/Code.js" ]; then
+  CODE_FILE="dist/Code.js"
+elif [ $GS_FILES -ge 1 ]; then
+  CODE_FILE=$(ls *.gs dist/*.gs 2>/dev/null | head -1)
+elif [ $JS_FILES -ge 1 ]; then
+  CODE_FILE=$(ls *.js dist/*.js 2>/dev/null | head -1)
 else
-  CODE_FILE=$(ls Code.* 2>/dev/null | head -1)
+  CODE_FILE=$(ls Code.* dist/Code.* 2>/dev/null | head -1)
 fi
 
 if [ -z "$CODE_FILE" ]; then
@@ -264,14 +273,31 @@ fi
 
 # Check manifest integrity
 echo -e "\n${YELLOW}9.4. Verifying manifest integrity...${NC}"
-if ! grep -q '"gmail"' appsscript.json; then
+# Find manifest file
+MANIFEST_FILE=""
+if [ -f "appsscript.json" ]; then
+  MANIFEST_FILE="appsscript.json"
+elif [ -f "dist/appsscript.json" ]; then
+  MANIFEST_FILE="dist/appsscript.json"
+fi
+
+if [ -z "$MANIFEST_FILE" ]; then
+  echo -e "${RED}❌ Error: Manifest file not found${NC}"
+  cd "$OLDPWD"
+  rm -rf "$TEMP_VERIFY_DIR"
+  exit 1
+fi
+
+echo "Checking manifest: $MANIFEST_FILE"
+
+if ! grep -q '"gmail"' "$MANIFEST_FILE"; then
   echo -e "${RED}❌ Error: Gmail configuration missing from manifest${NC}"
   cd "$OLDPWD"
   rm -rf "$TEMP_VERIFY_DIR"
   exit 1
 fi
 
-if ! grep -q 'homepageTrigger' appsscript.json; then
+if ! grep -q 'homepageTrigger' "$MANIFEST_FILE"; then
   echo -e "${RED}❌ Error: Homepage trigger missing from manifest${NC}"
   cd "$OLDPWD"
   rm -rf "$TEMP_VERIFY_DIR"
@@ -280,7 +306,7 @@ fi
 
 # Check icon URL is accessible
 echo -e "\n${YELLOW}9.5. Verifying icon URL...${NC}"
-ICON_URL=$(grep -o '"logoUrl":[[:space:]]*"[^"]*"' appsscript.json | grep -o 'https://[^"]*')
+ICON_URL=$(grep -o '"logoUrl":[[:space:]]*"[^"]*"' "$MANIFEST_FILE" | grep -o 'https://[^"]*')
 if [ ! -z "$ICON_URL" ]; then
   echo "Checking icon URL: $ICON_URL"
   if curl -s -o /dev/null -w "%{http_code}" "$ICON_URL" | grep -q "200"; then
