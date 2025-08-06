@@ -148,25 +148,41 @@ else
   exit 1
 fi
 
-# Test the deployed code
+# Test the deployed code by pulling latest version
 echo "Testing deployed code structure..."
-clasp pull --versionNumber $(clasp versions | grep -E "^[0-9]+" | head -1 | awk '{print $1}')
 
-# Check for either Code.gs or Code.js (Google converts .gs to .js on pull)
-if [ ! -f "Code.gs" ] && [ ! -f "Code.js" ]; then
-  echo -e "${RED}❌ Error: Code file not found in deployment${NC}"
+# Create temp directory for verification
+TEMP_DIR=$(mktemp -d)
+cd "$TEMP_DIR"
+
+# Copy clasp config files
+cp "$OLDPWD/.clasp.json" .
+cp "$OLDPWD/.claspignore" . 2>/dev/null || true
+
+# Pull the latest deployed version
+if clasp pull > /dev/null 2>&1; then
+  # Check if we have the main Code file (either .gs or .js)
+  if [ -f "Code.gs" ] || [ -f "Code.js" ]; then
+    echo -e "${GREEN}✅ Deployment structure verified - Found bundled Code file${NC}"
+    # Count total files (should be minimal)
+    FILE_COUNT=$(ls -1 *.gs *.js 2>/dev/null | wc -l)
+    echo "Total files in deployment: $FILE_COUNT"
+  else
+    echo -e "${RED}❌ Error: Main Code file not found in deployment${NC}"
+    cd "$OLDPWD"
+    rm -rf "$TEMP_DIR"
+    exit 1
+  fi
+else
+  echo -e "${RED}❌ Error: Failed to pull from Apps Script${NC}"
+  cd "$OLDPWD"
+  rm -rf "$TEMP_DIR"
   exit 1
 fi
 
-# Verify bundled file exists (check both .gs and .js extensions)
-if [ -f "Code.gs" ]; then
-  echo -e "${GREEN}✅ Found Code.gs${NC}"
-elif [ -f "Code.js" ]; then
-  echo -e "${GREEN}✅ Found Code.js (Google converted from .gs)${NC}"
-fi
-
-# Clean up pulled files
-rm -f *.gs *.js *.json
+# Return to original directory and clean up
+cd "$OLDPWD"
+rm -rf "$TEMP_DIR"
 echo -e "${GREEN}✅ Deployment structure verified${NC}"
 
 # 10. GIT OPERATIONS
