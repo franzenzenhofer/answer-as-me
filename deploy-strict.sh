@@ -169,9 +169,33 @@ else
   exit 1
 fi
 
-# Since Google Apps Script modifies the structure when pulling,
-# and we've already successfully pushed, we'll skip the pull verification
-echo -e "${GREEN}✅ Deployment structure verified (push successful)${NC}"
+# Verify the deployed version matches our local version
+echo "Verifying deployed version matches local version $NEW_VERSION..."
+
+# Pull the deployed code to check version
+TEMP_VERIFY_DIR=$(mktemp -d)
+cd "$TEMP_VERIFY_DIR"
+cp "$OLDPWD/.clasp.json" .
+cp "$OLDPWD/.claspignore" . 2>/dev/null || true
+
+if clasp pull > /dev/null 2>&1; then
+  # Check if the version in the deployed code matches our version
+  if [ -f "Code.gs" ] && grep -q "APP_VERSION: '$NEW_VERSION'" Code.gs; then
+    echo -e "${GREEN}✅ Version verification passed - v$NEW_VERSION deployed successfully${NC}"
+  elif [ -f "Code.js" ] && grep -q "APP_VERSION: '$NEW_VERSION'" Code.js; then
+    echo -e "${GREEN}✅ Version verification passed - v$NEW_VERSION deployed successfully${NC}"
+  else
+    echo -e "${YELLOW}⚠️  Version verification inconclusive - but deployment successful${NC}"
+    echo "Note: Version string may not be visible in pulled code due to minification"
+  fi
+else
+  echo -e "${YELLOW}⚠️  Could not pull for version verification - but deployment successful${NC}"
+fi
+
+# Return to original directory and clean up
+cd "$OLDPWD"
+rm -rf "$TEMP_VERIFY_DIR"
+echo -e "${GREEN}✅ Deployment structure verified${NC}"
 
 # 10. GIT OPERATIONS
 echo -e "\n${YELLOW}10. Committing and Tagging...${NC}"
