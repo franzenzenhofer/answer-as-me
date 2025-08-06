@@ -1,16 +1,21 @@
 namespace UI {
   /**
-   * Build the main card
+   * Build the main card - COMPLETE AND POWERFUL
    */
   export function buildMainCard(settings: Types.Config): GoogleAppsScript.Card_Service.Card {
     const card = CardService.newCardBuilder();
     card.setHeader(buildHeader());
     
-    // Add sections
-    card.addSection(buildInfoSection());
+    // Show everything users need
+    if (!settings.apiKey) {
+      card.addSection(buildSetupSection());
+    } else {
+      card.addSection(buildStatusSection(settings));
+    }
+    
     card.addSection(buildQuickLinksSection());
     card.addSection(buildConfigSection(settings));
-    card.addSection(buildSettingsSection(settings));
+    card.addSection(buildAdvancedSection(settings));
     card.addSection(buildActionSection());
     
     return card.build();
@@ -30,29 +35,67 @@ namespace UI {
       .setImageUrl(Constants.UI.ICON_MAIN);
   }
   
+  
   /**
-   * Build info section
+   * Build setup section for new users
    */
-  function buildInfoSection(): GoogleAppsScript.Card_Service.CardSection {
-    const section = CardService.newCardSection();
+  function buildSetupSection(): GoogleAppsScript.Card_Service.CardSection {
+    const section = CardService.newCardSection()
+      .setHeader('🚀 Quick Setup');
     
-    // Version info
-    const versionText = CardService.newDecoratedText()
-      .setText(`Version ${Constants.METADATA.APP_VERSION}`)
-      .setTopLabel('App Version')
-      .setIcon(CardService.Icon.BOOKMARK);
+    section.addWidget(
+      CardService.newTextParagraph()
+        .setText('<b>Welcome! Let\'s get started:</b>')
+    );
     
-    section.addWidget(versionText);
+    // Step 1: Get API Key
+    const getKeyButton = CardService.newTextButton()
+      .setText('1️⃣ Get Free API Key')
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      .setOpenLink(
+        CardService.newOpenLink()
+          .setUrl('https://makersuite.google.com/app/apikey')
+          .setOpenAs(CardService.OpenAs.FULL_SIZE)
+      );
+    section.addWidget(getKeyButton);
     
-    // Deployment time
-    if (Constants.METADATA.DEPLOY_TIME) {
-      const deployText = CardService.newDecoratedText()
-        .setText(Constants.METADATA.DEPLOY_TIME)
-        .setTopLabel('Last Deployed')
-        .setIcon(CardService.Icon.CLOCK);
-      
-      section.addWidget(deployText);
-    }
+    section.addWidget(
+      CardService.newTextParagraph()
+        .setText('2️⃣ Enter your API key below and click Save')
+    );
+    
+    return section;
+  }
+  
+  /**
+   * Build status section for existing users
+   */
+  function buildStatusSection(settings: Types.Config): GoogleAppsScript.Card_Service.CardSection {
+    const section = CardService.newCardSection()
+      .setHeader('📊 Status');
+    
+    // API Key status
+    const apiStatus = CardService.newDecoratedText()
+      .setText(settings.apiKey ? '✅ Connected' : '❌ Not Set')
+      .setTopLabel('API Key')
+      .setIcon(CardService.Icon.STAR);
+    section.addWidget(apiStatus);
+    
+    // Style analysis status
+    const hasStyle = PropertyManager.getProperty(Constants.PROPERTIES.WRITING_STYLE, 'user');
+    const styleStatus = CardService.newDecoratedText()
+      .setText(hasStyle ? '✅ Analyzed' : '⏳ Pending')
+      .setTopLabel('Writing Style')
+      .setIcon(CardService.Icon.PERSON);
+    section.addWidget(styleStatus);
+    
+    // Prompts status
+    const promptsDocId = PropertyManager.getProperty(Constants.PROPERTIES.PROMPTS_DOC_ID, 'script');
+    const promptsStatus = CardService.newDecoratedText()
+      .setText(promptsDocId ? '✅ Configured' : '⏳ Default')
+      .setTopLabel('Prompts')
+      .setIcon(CardService.Icon.DESCRIPTION);
+    section.addWidget(promptsStatus);
     
     return section;
   }
@@ -117,11 +160,30 @@ namespace UI {
   }
   
   /**
-   * Build settings section
+   * Build advanced section with all power features
    */
-  function buildSettingsSection(settings: Types.Config): GoogleAppsScript.Card_Service.CardSection {
+  function buildAdvancedSection(settings: Types.Config): GoogleAppsScript.Card_Service.CardSection {
     const section = CardService.newCardSection()
-      .setHeader('Settings');
+      .setHeader('⚙️ Advanced');
+    
+    // Response length
+    const lengthDropdown = CardService.newSelectionInput()
+      .setFieldName('responseLength')
+      .setTitle('Response Length')
+      .setType(CardService.SelectionInputType.DROPDOWN)
+      .addItem('Short (1-2 sentences)', 'short', settings.responseLength === 'short')
+      .addItem('Medium (3-5 sentences)', 'medium', settings.responseLength === 'medium')
+      .addItem('Long (6+ sentences)', 'long', settings.responseLength === 'long');
+    section.addWidget(lengthDropdown);
+    
+    // Custom instructions
+    const instructionsInput = CardService.newTextInput()
+      .setFieldName('customInstructions')
+      .setTitle('Custom Instructions')
+      .setValue(settings.customInstructions || '')
+      .setHint('Special instructions for all responses')
+      .setMultiline(true);
+    section.addWidget(instructionsInput);
     
     // Signature
     const signatureInput = CardService.newTextInput()
@@ -130,7 +192,6 @@ namespace UI {
       .setValue(settings.signature)
       .setHint('Your email signature')
       .setMultiline(true);
-    
     section.addWidget(signatureInput);
     
     return section;
@@ -715,4 +776,5 @@ namespace UI {
     
     return card.build();
   }
+  
 }

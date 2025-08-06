@@ -31,21 +31,45 @@ namespace EntryPoints {
   }
   
   /**
-   * Build message card with actions
+   * Build message card with COMPLETE actions
    */
   export function buildMessageCard(e: GoogleAppsScript.Addons.EventObject): GoogleAppsScript.Card_Service.Card {
     const card = CardService.newCardBuilder();
+    const settings = Config.getSettings();
+    
     const header = CardService.newCardHeader()
-      .setTitle('Your Email Assistant')
-      .setSubtitle('I\'ll draft responses in your style');
+      .setTitle('✉️ Answer As Me')
+      .setSubtitle(settings.apiKey ? 'Ready to generate' : 'Setup required');
     
     card.setHeader(header);
+    
+    // Check API key first
+    if (!settings.apiKey) {
+      const setupSection = CardService.newCardSection();
+      setupSection.addWidget(
+        CardService.newTextParagraph()
+          .setText('⚠️ <b>API Key Required</b><br><br>Click Settings to add your API key.')
+      );
+      
+      const settingsButton = CardService.newTextButton()
+        .setText('Go to Settings')
+        .setOnClickAction(
+          CardService.newAction()
+            .setFunctionName('onSettings')
+        )
+        .setTextButtonStyle(CardService.TextButtonStyle.FILLED);
+      setupSection.addWidget(settingsButton);
+      
+      card.addSection(setupSection);
+      return card.build();
+    }
     
     // Main actions section
     const mainSection = CardService.newCardSection();
     
+    // BIG generate button
     const generateButton = CardService.newTextButton()
-      .setText('Generate Response')
+      .setText('🚀 Generate Response')
       .setOnClickAction(
         CardService.newAction()
           .setFunctionName('generateResponse')

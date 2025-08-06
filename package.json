@@ -26,7 +26,7 @@
     "test:postbundle": "node tests/scripts/test-post-bundle.js",
     "test:all": "npm-run-all --parallel test test:postbundle",
     "predeploy": "npm-run-all check build test && echo 'Pre-deploy checks passed'",
-    "deploy": "./deploy-strict.sh",
+    "deploy": "./deploy.sh",
     "open": "clasp open-script",
     "logs": "clasp tail-logs",
     "versions": "clasp list-versions",
