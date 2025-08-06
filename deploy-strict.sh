@@ -199,14 +199,22 @@ echo "Checking dist directory:"
 ls -la dist/ 2>/dev/null || echo "No dist directory"
 
 # Google Apps Script may return files with different extensions
-# Check both current directory and dist subdirectory
-CODE_FILES=$(ls Code.* dist/Code.* 2>/dev/null | wc -l | tr -d ' ')
-GS_FILES=$(ls *.gs dist/*.gs 2>/dev/null | wc -l | tr -d ' ')
-JS_FILES=$(ls *.js dist/*.js 2>/dev/null | wc -l | tr -d ' ')
-MANIFEST_FILES=$(ls appsscript.json dist/appsscript.json 2>/dev/null | wc -l | tr -d ' ')
-
-# Total code files (any of .gs, .js, or Code.*)
-TOTAL_CODE_FILES=$((CODE_FILES + GS_FILES + JS_FILES))
+# Count unique files (clasp puts them in dist directory)
+if [ -d "dist" ]; then
+  # Files are in dist directory
+  CODE_FILES=$(ls dist/Code.* 2>/dev/null | wc -l | tr -d ' ')
+  GS_FILES=$(ls dist/*.gs 2>/dev/null | grep -v "Code\.gs" | wc -l | tr -d ' ')
+  JS_FILES=$(ls dist/*.js 2>/dev/null | grep -v "Code\.js" | wc -l | tr -d ' ')
+  MANIFEST_FILES=$(ls dist/appsscript.json 2>/dev/null | wc -l | tr -d ' ')
+  TOTAL_CODE_FILES=$((CODE_FILES))
+else
+  # Files are in current directory
+  CODE_FILES=$(ls Code.* 2>/dev/null | wc -l | tr -d ' ')
+  GS_FILES=$(ls *.gs 2>/dev/null | grep -v "Code\.gs" | wc -l | tr -d ' ')
+  JS_FILES=$(ls *.js 2>/dev/null | grep -v "Code\.js" | wc -l | tr -d ' ')
+  MANIFEST_FILES=$(ls appsscript.json 2>/dev/null | wc -l | tr -d ' ')
+  TOTAL_CODE_FILES=$((CODE_FILES + GS_FILES + JS_FILES))
+fi
 
 if [ $TOTAL_CODE_FILES -eq 0 ]; then
   echo -e "${RED}❌ Error: No code files found in deployment${NC}"
