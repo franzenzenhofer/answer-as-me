@@ -131,6 +131,27 @@ fi
 clasp push --force
 echo -e "${GREEN}✅ Pushed to Google Apps Script${NC}"
 
+# Update deployment version and create test deployment
+echo "Updating deployment version..."
+# First, create a new version 
+clasp version > /dev/null 2>&1 || true
+
+echo "Creating test deployment..."
+DEPLOYMENT_OUTPUT=$(clasp deploy 2>&1)
+if echo "$DEPLOYMENT_OUTPUT" | grep -q "Created version"; then
+  echo -e "${GREEN}✅ Test deployment created${NC}"
+  echo "$DEPLOYMENT_OUTPUT"
+  
+  # Extract deployment URL if available
+  DEPLOYMENT_ID=$(echo "$DEPLOYMENT_OUTPUT" | grep -o "AKfyc[a-zA-Z0-9_-]*" | head -1)
+  if [ ! -z "$DEPLOYMENT_ID" ]; then
+    echo "Deployment ID: $DEPLOYMENT_ID"
+    echo "Test URL: https://script.google.com/macros/d/$SCRIPT_ID/e/deployments"
+  fi
+else
+  echo -e "${YELLOW}⚠️  Test deployment may already exist${NC}"
+fi
+
 # Get script ID
 SCRIPT_ID=$(grep -o '"scriptId":[[:space:]]*"[^"]*"' .clasp.json | grep -o '"[^"]*"$' | tr -d '"')
 echo "Script ID: $SCRIPT_ID"
@@ -202,7 +223,7 @@ echo "4. Create GitHub release notes"
 # Create deployment log
 echo "{
   \"version\": \"$NEW_VERSION\",
-  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+  \"timestamp\": \"$(date +%Y-%m-%d\ %H:%M:%S)\",
   \"bundleSize\": $BUNDLE_SIZE,
   \"coverage\": \"${COVERAGE}%\",
   \"scriptId\": \"$SCRIPT_ID\",
