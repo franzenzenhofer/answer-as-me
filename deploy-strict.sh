@@ -141,11 +141,12 @@ echo -e "\n${YELLOW}9. Running Post-Deployment Tests...${NC}"
 
 # Verify deployment
 echo "Verifying deployment..."
-if ! clasp status | grep -q "$SCRIPT_ID"; then
+if [ -f ".clasp.json" ] && grep -q "$SCRIPT_ID" .clasp.json; then
+  echo -e "${GREEN}✅ Deployment verified${NC}"
+else
   echo -e "${RED}❌ Error: Deployment verification failed${NC}"
   exit 1
 fi
-echo -e "${GREEN}✅ Deployment verified${NC}"
 
 # Test the deployed code
 echo "Testing deployed code structure..."

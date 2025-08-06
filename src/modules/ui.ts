@@ -7,6 +7,7 @@ namespace UI {
     card.setHeader(buildHeader());
     
     // Add sections
+    card.addSection(buildInfoSection());
     card.addSection(buildConfigSection(settings));
     card.addSection(buildSettingsSection(settings));
     card.addSection(buildActionSection());
@@ -18,11 +19,41 @@ namespace UI {
    * Build header
    */
   function buildHeader(): GoogleAppsScript.Card_Service.CardHeader {
+    const deployInfo = Constants.METADATA.DEPLOY_TIME ? 
+      ` - Deployed: ${Constants.METADATA.DEPLOY_TIME}` : '';
+    
     return CardService.newCardHeader()
-      .setTitle(Config.APP_NAME)
-      .setSubtitle(`v${Config.VERSION} - ${Config.APP_DESCRIPTION}`)
+      .setTitle(Constants.METADATA.APP_NAME)
+      .setSubtitle(`v${Constants.METADATA.APP_VERSION}${deployInfo}`)
       .setImageStyle(CardService.ImageStyle.CIRCLE)
       .setImageUrl(Constants.UI.ICON_MAIN);
+  }
+  
+  /**
+   * Build info section
+   */
+  function buildInfoSection(): GoogleAppsScript.Card_Service.CardSection {
+    const section = CardService.newCardSection();
+    
+    // Version info
+    const versionText = CardService.newDecoratedText()
+      .setText(`Version ${Constants.METADATA.APP_VERSION}`)
+      .setTopLabel('App Version')
+      .setIcon(CardService.Icon.BOOKMARK);
+    
+    section.addWidget(versionText);
+    
+    // Deployment time
+    if (Constants.METADATA.DEPLOY_TIME) {
+      const deployText = CardService.newDecoratedText()
+        .setText(Constants.METADATA.DEPLOY_TIME)
+        .setTopLabel('Last Deployed')
+        .setIcon(CardService.Icon.CLOCK);
+      
+      section.addWidget(deployText);
+    }
+    
+    return section;
   }
   
   /**

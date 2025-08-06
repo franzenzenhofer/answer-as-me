@@ -159,7 +159,6 @@ function createBundle() {
   // Read package.json to get version
   const packageJson = JSON.parse(fs.readFileSync(packageFile, 'utf8'));
   const fullVersion = packageJson.version || '1.0.0';
-  const appVersion = fullVersion.split('.').slice(0, 2).join('.');
   const deployTime = new Date().toLocaleString('de-AT', {
     year: 'numeric',
     month: '2-digit', 
@@ -295,10 +294,8 @@ function createBundle() {
     .replace(/const\s+([^=]+)\s*=\s*require\([^)]+\);?/g, '')
     .trim();
   
-  // Replace version placeholders using robust injection
-  const { injectVersionInfo } = require('./inject-version.js');
-  const contentToInject = modulesContent + '\n\n' + mainContent;
-  const finalContent = injectVersionInfo(contentToInject, appVersion, deployTime);
+  // Combine all content
+  const finalContent = modulesContent + '\n\n' + mainContent;
   
   // Add header
   const header = `/**
@@ -313,7 +310,10 @@ function createBundle() {
 
 `;
   
-  const bundledContent = header + finalContent;
+  // Replace version and deployment time placeholders
+  let bundledContent = header + finalContent;
+  bundledContent = bundledContent.replace(/\{\{VERSION\}\}/g, fullVersion);
+  bundledContent = bundledContent.replace(/\{\{DEPLOY_TIME\}\}/g, deployTime);
   
   // Validate bundle content before writing
   if (bundledContent.length < 10000) { // Less than 10KB indicates a problem

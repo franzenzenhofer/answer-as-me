@@ -365,7 +365,8 @@ namespace Constants {
     // App info
     APP_NAME: 'Answer As Me',
     APP_DESCRIPTION: 'AI-powered email responses in your style',
-    APP_VERSION: '1.0.0',
+    APP_VERSION: '{{VERSION}}',
+    DEPLOY_TIME: '{{DEPLOY_TIME}}',
     
     // URLs
     API_KEY_URL: 'https://makersuite.google.com/app/apikey',
