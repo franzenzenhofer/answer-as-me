@@ -1,0 +1,62 @@
+<\!DOCTYPE html>
+<html>
+<head>
+    <title>Answer As Me Icon</title>
+</head>
+<body>
+    <canvas id="canvas" width="128" height="128"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Background circle
+        ctx.fillStyle = '#4285F4';
+        ctx.beginPath();
+        ctx.arc(64, 64, 60, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Letter A
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 60px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('A', 64, 70);
+        
+        // Small envelope icon
+        ctx.save();
+        ctx.translate(80, 80);
+        
+        // Envelope body
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillRect(0, 5, 30, 20);
+        
+        // Envelope flap
+        ctx.strokeStyle = '#4285F4';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 5);
+        ctx.lineTo(15, 15);
+        ctx.lineTo(30, 5);
+        ctx.stroke();
+        
+        ctx.restore();
+        
+        // Download link
+        const dataURL = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = 'answer-as-me-icon.png';
+        link.href = dataURL;
+        link.textContent = 'Download Icon';
+        document.body.appendChild(link);
+        
+        // Also display the icon
+        const img = document.createElement('img');
+        img.src = dataURL;
+        img.style.border = '1px solid #ccc';
+        img.style.margin = '20px';
+        document.body.appendChild(document.createElement('br'));
+        document.body.appendChild(img);
+    </script>
+</body>
+</html>
+EOF < /dev/null
